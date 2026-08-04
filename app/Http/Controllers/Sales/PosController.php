@@ -69,13 +69,18 @@ class PosController extends Controller
     {
         try {
             $sale = $this->sales->registrar($request->validated());
-            $this->cash->registrarIngresoVenta($sale);
+            $cajaOk = $this->cash->registrarIngresoVenta($sale);
         } catch (Throwable $e) {
             return back()->with('error', $e->getMessage());
         }
 
+        $msg = "Venta {$sale->numero} registrada correctamente.";
+        if (! $cajaOk) {
+            $msg .= ' Aviso: no hay una caja abierta a tu nombre, así que el ingreso no quedó registrado en caja.';
+        }
+
         return redirect()->route('ventas.show', $sale->id)
-            ->with('success', "Venta {$sale->numero} registrada correctamente.");
+            ->with($cajaOk ? 'success' : 'warning', $msg);
     }
 
     /** Búsqueda rápida de clientes (reutilizada en el POS). */

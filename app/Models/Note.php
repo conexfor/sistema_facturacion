@@ -11,6 +11,14 @@ class Note extends Model
 {
     use BelongsToCompany;
 
+    /**
+     * Aviso transitorio (no persistido) cuando el reembolso a caja de una
+     * nota de crédito no pudo registrarse por falta de una sesión de caja
+     * abierta. Se llena en NoteService y se lee en el controlador para
+     * avisar al usuario; nunca se guarda en la base de datos.
+     */
+    public ?string $advertenciaCaja = null;
+
     protected $fillable = [
         'company_id',
         'branch_id',

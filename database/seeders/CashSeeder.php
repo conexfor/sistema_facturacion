@@ -16,10 +16,16 @@ class CashSeeder extends Seeder
         }
 
         $mainBranch = $company->branches()->where('is_main', true)->first();
+        $norteBranch = $company->branches()->where('is_main', false)->first();
 
         CashRegister::firstOrCreate(
             ['company_id' => $company->id, 'nombre' => 'Caja Principal'],
             ['company_id' => $company->id, 'branch_id' => $mainBranch?->id],
+        );
+
+        CashRegister::firstOrCreate(
+            ['company_id' => $company->id, 'nombre' => 'Caja Sucursal Norte'],
+            ['company_id' => $company->id, 'branch_id' => $norteBranch?->id],
         );
     }
 }

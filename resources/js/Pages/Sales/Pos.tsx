@@ -282,8 +282,12 @@ export default function Pos({
         (l) => l.controla_stock && l.cantidad > l.stock,
     );
 
+    const clienteIdentificado =
+        !!customer && customer.tipo_documento !== '0' && !!customer.numero_documento;
+    const boletaRequiereCliente = tipo === 'boleta' && totals.total > 700 && !clienteIdentificado;
+
     const submit = () => {
-        if (cart.length === 0 || processing) return;
+        if (cart.length === 0 || processing || boletaRequiereCliente) return;
         setProcessing(true);
         router.post(
             route('ventas.pos.store'),
@@ -634,9 +638,18 @@ export default function Pos({
                             </p>
                         )}
 
+                        {boletaRequiereCliente && (
+                            <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                                Las boletas mayores a S/ 700 deben identificar al cliente con DNI
+                                o RUC. Busca o registra al cliente antes de cobrar.
+                            </p>
+                        )}
+
                         <Button
                             onClick={submit}
-                            disabled={cart.length === 0 || processing || hayStockInsuficiente}
+                            disabled={
+                                cart.length === 0 || processing || hayStockInsuficiente || boletaRequiereCliente
+                            }
                             className="mt-4 w-full py-3 text-base"
                         >
                             <ShoppingCart className="size-5" /> Cobrar{' '}

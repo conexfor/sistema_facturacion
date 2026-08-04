@@ -10,7 +10,7 @@ import { formatCurrency } from '@/lib/format';
 import { Paginated } from '@/types/models';
 import { Head, router } from '@inertiajs/react';
 import axios from 'axios';
-import { Ban, Download, FileCode2, Info, RefreshCw, Search, X } from 'lucide-react';
+import { Ban, Download, FileCode2, Info, RefreshCw, Search, Send, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface FacturaOpt {
@@ -56,6 +56,7 @@ export default function Index({
     const [motivo, setMotivo] = useState('');
     const [procesando, setProcesando] = useState(false);
     const [consultando, setConsultando] = useState<number | null>(null);
+    const [reenviando, setReenviando] = useState<number | null>(null);
 
     useEffect(() => {
         if (factura || query.trim() === '') {
@@ -92,6 +93,11 @@ export default function Index({
     const consultar = (id: number) => {
         setConsultando(id);
         router.post(route('bajas.consultar', id), {}, { preserveScroll: true, onFinish: () => setConsultando(null) });
+    };
+
+    const reenviar = (id: number) => {
+        setReenviando(id);
+        router.post(route('bajas.reenviar', id), {}, { preserveScroll: true, onFinish: () => setReenviando(null) });
     };
 
     return (
@@ -232,6 +238,16 @@ export default function Index({
                                                             className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-brand-600 dark:hover:bg-slate-800"
                                                         >
                                                             <RefreshCw className={`size-4 ${consultando === b.id ? 'animate-spin' : ''}`} />
+                                                        </button>
+                                                    )}
+                                                    {b.estado === 'rechazado' && (
+                                                        <button
+                                                            onClick={() => reenviar(b.id)}
+                                                            disabled={reenviando === b.id}
+                                                            title="Reenviar a SUNAT"
+                                                            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-brand-600 disabled:opacity-50 dark:hover:bg-slate-800"
+                                                        >
+                                                            <Send className={`size-4 ${reenviando === b.id ? 'animate-pulse' : ''}`} />
                                                         </button>
                                                     )}
                                                     {b.xml_path && (

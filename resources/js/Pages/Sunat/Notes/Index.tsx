@@ -11,7 +11,7 @@ import { formatCurrency } from '@/lib/format';
 import { Note, Paginated } from '@/types/models';
 import { Head, router, useForm } from '@inertiajs/react';
 import axios from 'axios';
-import { Download, FileCheck, FileMinus, Plus, Printer, Receipt, Search, X } from 'lucide-react';
+import { Download, FileCheck, FileMinus, Plus, Printer, Receipt, RefreshCw, Search, X } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 
 interface VentaOpt {
@@ -51,6 +51,7 @@ export default function Index({
     const [venta, setVenta] = useState<VentaOpt | null>(null);
     const [vQuery, setVQuery] = useState('');
     const [vResults, setVResults] = useState<VentaOpt[]>([]);
+    const [reenviando, setReenviando] = useState<number | null>(null);
 
     const form = useForm({
         sale_id: 0,
@@ -101,6 +102,11 @@ export default function Index({
     const submit = (e: FormEvent) => {
         e.preventDefault();
         form.post(route('notas.store'), { onSuccess: () => setShow(false) });
+    };
+
+    const reenviar = (id: number) => {
+        setReenviando(id);
+        router.post(route('notas.emitir', id), {}, { preserveScroll: true, onFinish: () => setReenviando(null) });
     };
 
     return (
@@ -186,6 +192,17 @@ export default function Index({
                                                 </td>
                                                 <td className="py-3">
                                                     <div className="flex items-center justify-end gap-1">
+                                                        {(n.sunat_estado === 'no_enviado' || n.sunat_estado === 'rechazado') && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => reenviar(n.id)}
+                                                                disabled={reenviando === n.id}
+                                                                title="Reenviar a SUNAT"
+                                                                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-brand-600 disabled:opacity-50 dark:hover:bg-slate-800"
+                                                            >
+                                                                <RefreshCw className={`size-4 ${reenviando === n.id ? 'animate-spin' : ''}`} />
+                                                            </button>
+                                                        )}
                                                         <a
                                                             href={route('notas.pdf', n.id)}
                                                             target="_blank"

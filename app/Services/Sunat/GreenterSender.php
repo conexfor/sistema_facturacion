@@ -11,6 +11,9 @@ use Greenter\Ws\Services\SunatEndpoints;
  * Driver real: firma con el certificado de la empresa y envía a SUNAT
  * (beta o producción según company.sunat_modo). Se activa cuando la empresa
  * tiene configuradas las credenciales (certificado + clave SOL).
+ *
+ * Solo se usa para facturas/boletas y notas (billService SOAP). Las guías de
+ * remisión van por GreApiSender (GRE 2.0 REST), no por este sender.
  */
 class GreenterSender implements SunatSenderInterface
 {
@@ -23,12 +26,7 @@ class GreenterSender implements SunatSenderInterface
         $pem = $this->loadCertificate();
 
         $prod = $this->company->sunat_modo === 'produccion';
-        // Las guías de remisión (tipoDoc 09) usan un endpoint distinto al de
-        // facturas/boletas/notas.
-        $esGuia = $document instanceof \Greenter\Model\Sale\Despatch;
-        $endpoint = $esGuia
-            ? ($prod ? SunatEndpoints::GUIA_PRODUCCION : SunatEndpoints::GUIA_BETA)
-            : ($prod ? SunatEndpoints::FE_PRODUCCION : SunatEndpoints::FE_BETA);
+        $endpoint = $prod ? SunatEndpoints::FE_PRODUCCION : SunatEndpoints::FE_BETA;
 
         $see = new See();
         $see->setCertificate($pem);

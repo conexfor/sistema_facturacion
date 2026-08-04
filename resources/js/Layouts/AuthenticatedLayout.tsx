@@ -1,7 +1,7 @@
 import SidebarContent from '@/Components/SidebarContent';
 import Topbar from '@/Components/Topbar';
 import { usePage } from '@inertiajs/react';
-import { CheckCircle2, X, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, X, XCircle } from 'lucide-react';
 import {
     PropsWithChildren,
     ReactNode,
@@ -21,7 +21,7 @@ export default function AuthenticatedLayout({
     });
     const [mobileOpen, setMobileOpen] = useState(false);
     const [toast, setToast] = useState<{
-        type: 'success' | 'error';
+        type: 'success' | 'error' | 'warning';
         message: string;
     } | null>(null);
 
@@ -32,6 +32,7 @@ export default function AuthenticatedLayout({
     useEffect(() => {
         if (flash?.success) setToast({ type: 'success', message: flash.success });
         else if (flash?.error) setToast({ type: 'error', message: flash.error });
+        else if (flash?.warning) setToast({ type: 'warning', message: flash.warning });
     }, [flash]);
 
     useEffect(() => {
@@ -96,10 +97,15 @@ export default function AuthenticatedLayout({
             {/* Toast de mensajes flash */}
             {toast && (
                 <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-xl border bg-white px-4 py-3 shadow-lg dark:bg-slate-800 dark:text-slate-100"
-                    style={{ borderColor: toast.type === 'success' ? '#86efac' : '#fca5a5' }}
+                    style={{
+                        borderColor:
+                            toast.type === 'success' ? '#86efac' : toast.type === 'warning' ? '#fcd34d' : '#fca5a5',
+                    }}
                 >
                     {toast.type === 'success' ? (
                         <CheckCircle2 className="size-5 text-emerald-500" />
+                    ) : toast.type === 'warning' ? (
+                        <AlertTriangle className="size-5 text-amber-500" />
                     ) : (
                         <XCircle className="size-5 text-rose-500" />
                     )}

@@ -49,11 +49,16 @@ class CustomerController extends Controller
         return back()->with('success', 'Cliente actualizado correctamente.');
     }
 
+    /**
+     * Desactiva al cliente en vez de borrarlo: preserva el historial de
+     * ventas y comprobantes (incluyendo reintentos de facturas rechazadas),
+     * y evita que se le pueda seguir vendiendo.
+     */
     public function destroy(Customer $customer): RedirectResponse
     {
-        $customer->delete();
+        $customer->update(['is_active' => false]);
 
-        return back()->with('success', 'Cliente eliminado.');
+        return back()->with('success', 'Cliente desactivado. Ya no aparecerá para nuevas ventas.');
     }
 
     /** Consulta automática RUC/DNI (SUNAT/RENIEC). */
@@ -95,9 +100,15 @@ class CustomerController extends Controller
      */
     public function quickStore(Request $request): JsonResponse
     {
+        $formatoDoc = match ($request->input('tipo_documento')) {
+            '1' => ['required', 'digits:8'],
+            '6' => ['required', 'digits:11'],
+            default => ['nullable', 'string', 'max:20'],
+        };
+
         $data = $request->validate([
             'tipo_documento' => ['required', Rule::in(array_keys(Customer::TIPOS))],
-            'numero_documento' => ['nullable', 'string', 'max:20'],
+            'numero_documento' => $formatoDoc,
             'razon_social' => ['required', 'string', 'max:255'],
             'direccion' => ['nullable', 'string', 'max:255'],
             'telefono' => ['nullable', 'string', 'max:30'],

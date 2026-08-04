@@ -2,6 +2,7 @@ import PageHeader from '@/Components/ui/PageHeader';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
+    Building2,
     ChevronRight,
     type LucideIcon,
     ScrollText,
@@ -19,6 +20,13 @@ interface Seccion {
 }
 
 const secciones: Seccion[] = [
+    {
+        label: 'Datos de la empresa',
+        description: 'RUC, razón social y datos generales de facturación.',
+        icon: Building2,
+        routeName: 'settings.empresa.edit',
+        permission: 'configuracion.gestionar',
+    },
     {
         label: 'Usuarios',
         description: 'Gestiona los usuarios y su acceso al sistema.',

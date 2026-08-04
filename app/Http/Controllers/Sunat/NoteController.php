@@ -104,10 +104,16 @@ class NoteController extends Controller
         }
 
         $tipoTxt = $note->tipo === 'credito' ? 'crédito' : 'débito';
-        $estado = $note->sunat_estado === 'rechazado' ? 'error' : 'success';
+        $msg = "Nota de {$tipoTxt} {$note->numero}: {$note->sunat_mensaje}";
 
-        return redirect()->route('notas.index')
-            ->with($estado, "Nota de {$tipoTxt} {$note->numero}: {$note->sunat_mensaje}");
+        if ($note->sunat_estado === 'rechazado') {
+            return redirect()->route('notas.index')->with('error', $msg);
+        }
+        if ($note->advertenciaCaja) {
+            return redirect()->route('notas.index')->with('warning', $msg . ' ' . $note->advertenciaCaja);
+        }
+
+        return redirect()->route('notas.index')->with('success', $msg);
     }
 
     public function emitir(Note $note): RedirectResponse

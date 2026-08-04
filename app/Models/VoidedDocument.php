@@ -10,6 +10,13 @@ class VoidedDocument extends Model
 {
     use BelongsToCompany;
 
+    /**
+     * Aviso transitorio (no persistido) cuando el reembolso a caja al anular
+     * la venta no pudo registrarse por falta de una sesión de caja abierta.
+     * Se llena en VoidedService y se lee en el controlador; nunca se guarda.
+     */
+    public ?string $advertenciaCaja = null;
+
     protected $fillable = [
         'company_id',
         'user_id',

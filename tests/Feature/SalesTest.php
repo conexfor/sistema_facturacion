@@ -105,6 +105,45 @@ class SalesTest extends TestCase
         $this->assertEquals('F001', Sale::first()->serie);
     }
 
+    public function test_boleta_mayor_a_700_requiere_cliente_identificado(): void
+    {
+        $user = $this->admin();
+        $product = Product::where('codigo', 'P0001')->firstOrFail();
+        $warehouse = Warehouse::where('codigo', 'ALM01')->firstOrFail();
+
+        // Sin cliente identificado -> rechazada antes de crear la venta
+        $this->actingAs($user)
+            ->post(route('ventas.pos.store'), [
+                'tipo_comprobante' => 'boleta',
+                'warehouse_id' => $warehouse->id,
+                'metodo_pago' => 'efectivo',
+                'monto_recibido' => 800,
+                'items' => [
+                    ['product_id' => $product->id, 'cantidad' => 1, 'precio_unitario' => 800],
+                ],
+            ])
+            ->assertSessionHas('error');
+
+        $this->assertEquals(0, Sale::count());
+
+        // Con cliente identificado (DNI) -> ok
+        $dni = Customer::where('tipo_documento', '1')->firstOrFail();
+        $this->actingAs($user)
+            ->post(route('ventas.pos.store'), [
+                'tipo_comprobante' => 'boleta',
+                'warehouse_id' => $warehouse->id,
+                'customer_id' => $dni->id,
+                'metodo_pago' => 'efectivo',
+                'monto_recibido' => 800,
+                'items' => [
+                    ['product_id' => $product->id, 'cantidad' => 1, 'precio_unitario' => 800],
+                ],
+            ])
+            ->assertRedirect();
+
+        $this->assertEquals(1, Sale::count());
+    }
+
     public function test_sale_fails_when_stock_insufficient(): void
     {
         $user = $this->admin();

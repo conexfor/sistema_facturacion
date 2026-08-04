@@ -142,13 +142,20 @@ class CashService
         });
     }
 
-    /** Ingreso automático por venta en efectivo. */
-    public function registrarIngresoVenta(Sale $sale): void
+    /**
+     * Ingreso automático por venta en efectivo.
+     *
+     * @return bool false si la venta era en efectivo pero no había caja
+     *              abierta para registrar el ingreso (para poder avisar al
+     *              usuario en vez de perder el movimiento en silencio).
+     */
+    public function registrarIngresoVenta(Sale $sale): bool
     {
         if ($sale->metodo_pago !== 'efectivo') {
-            return;
+            return true;
         }
-        $this->ingresoEfectivoSiCajaAbierta(
+
+        return $this->ingresoEfectivoSiCajaAbierta(
             'venta',
             'Venta ' . $sale->numero,
             (float) $sale->total,
@@ -176,15 +183,20 @@ class CashService
         );
     }
 
-    /** Egreso automático por reembolso de una venta anulada (efectivo). */
-    public function registrarReembolsoVenta(Sale $sale, float $monto): void
+    /**
+     * Egreso automático por reembolso de una venta anulada (efectivo).
+     *
+     * @return bool false si había un monto por reembolsar pero no hay caja
+     *              abierta (para el usuario actual) donde registrarlo.
+     */
+    public function registrarReembolsoVenta(Sale $sale, float $monto): bool
     {
         if ($monto <= 0) {
-            return;
+            return true;
         }
         $session = $this->sesionActiva();
         if (! $session) {
-            return;
+            return false;
         }
         $this->registrarMovimiento(
             $session,
@@ -194,14 +206,18 @@ class CashService
             $monto,
             ['sale_id' => $sale->id, 'referencia' => $sale->numero],
         );
+
+        return true;
     }
 
-    private function ingresoEfectivoSiCajaAbierta(string $categoria, string $concepto, float $monto, array $extra): void
+    private function ingresoEfectivoSiCajaAbierta(string $categoria, string $concepto, float $monto, array $extra): bool
     {
         $session = $this->sesionActiva();
         if (! $session) {
-            return;
+            return false;
         }
         $this->registrarMovimiento($session, 'ingreso', $categoria, $concepto, $monto, $extra);
+
+        return true;
     }
 }

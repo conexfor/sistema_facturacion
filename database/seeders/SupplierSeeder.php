@@ -42,6 +42,20 @@ class SupplierSeeder extends Seeder
                 'razon_social' => 'COMERCIALIZADORA LIMA NORTE S.A.',
                 'direccion' => 'Av. Túpac Amaru 1800, Independencia',
             ],
+            [
+                'tipo_documento' => '6',
+                'numero_documento' => '20445566778',
+                'razon_social' => 'INDUSTRIAS ALIMENTARIAS DEL SUR S.A.C.',
+                'direccion' => 'Av. Ejército 350, Arequipa',
+                'contacto' => 'Rosa Medina',
+                'telefono' => '054-224488',
+            ],
+            [
+                'tipo_documento' => '1',
+                'numero_documento' => '41122334',
+                'razon_social' => 'Luis Herrera Vásquez',
+                'telefono' => '956123456',
+            ],
         ];
 
         foreach ($proveedores as $p) {

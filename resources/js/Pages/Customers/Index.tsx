@@ -391,8 +391,8 @@ export default function Index({
 
             <ConfirmDialog
                 show={!!toDelete}
-                title="Eliminar cliente"
-                message={`¿Eliminar a "${toDelete?.razon_social}"? Las ventas registradas se conservan.`}
+                title="Desactivar cliente"
+                message={`¿Desactivar a "${toDelete?.razon_social}"? No podrás venderle hasta reactivarlo; su historial de ventas y comprobantes se conserva.`}
                 processing={deleting}
                 onConfirm={confirmDelete}
                 onClose={() => setToDelete(null)}

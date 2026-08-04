@@ -17,14 +17,24 @@ class CustomerRequest extends FormRequest
     {
         $companyId = $this->user()->company_id;
         $customerId = $this->route('customer')?->id;
+        $tipoDoc = $this->input('tipo_documento');
+
+        // DNI y RUC son los documentos que SUNAT valida en los comprobantes
+        // electrónicos: exigimos la longitud exacta para no terminar
+        // enviando un RUC/DNI vacío o inválido en una factura/boleta.
+        $formatoDoc = match ($tipoDoc) {
+            '1' => ['required', 'digits:8'],
+            '6' => ['required', 'digits:11'],
+            default => ['nullable', 'string', 'max:20'],
+        };
 
         return [
             'tipo_documento' => ['required', Rule::in(array_keys(Customer::TIPOS))],
             'numero_documento' => [
-                'nullable', 'string', 'max:20',
+                ...$formatoDoc,
                 Rule::unique('customers', 'numero_documento')
                     ->where(fn ($q) => $q->where('company_id', $companyId)
-                        ->where('tipo_documento', $this->input('tipo_documento')))
+                        ->where('tipo_documento', $tipoDoc))
                     ->ignore($customerId),
             ],
             'razon_social' => ['required', 'string', 'max:255'],

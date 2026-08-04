@@ -43,6 +43,12 @@ class CustomerSeeder extends Seeder
                 'numero_documento' => '70123456',
                 'razon_social' => 'Carlos Fernández Ríos',
             ],
+            [
+                'tipo_documento' => '1',
+                'numero_documento' => '10234567',
+                'razon_social' => 'Pedro Alvarado Reyes',
+                'telefono' => '912345678',
+            ],
         ];
 
         foreach ($clientes as $c) {

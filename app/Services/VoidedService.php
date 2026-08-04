@@ -22,6 +22,7 @@ class VoidedService
     public function __construct(
         private readonly VoidedBuilder $builder,
         private readonly InventoryService $inventory,
+        private readonly CashService $cash,
     ) {
     }
 
@@ -81,9 +82,11 @@ class VoidedService
                 'mensaje' => 'Baja generada en modo simulación.',
                 'sent_at' => now(),
             ]);
-            $this->aplicarAnulacion($voided->sale, $voided->identificador);
+            $advertencia = $this->aplicarAnulacion($voided->sale, $voided->identificador);
+            $result = $voided->refresh();
+            $result->advertenciaCaja = $advertencia;
 
-            return $voided->refresh();
+            return $result;
         }
 
         $doc = $this->builder->build($voided, $company);
@@ -156,19 +159,23 @@ class VoidedService
             'mensaje' => $cdr->getDescription() ?? 'Procesado por SUNAT.',
         ]);
 
+        $advertencia = null;
         if ($aceptado) {
-            $this->aplicarAnulacion($voided->sale, $voided->identificador);
+            $advertencia = $this->aplicarAnulacion($voided->sale, $voided->identificador);
         }
 
-        return $voided->refresh();
+        $result = $voided->refresh();
+        $result->advertenciaCaja = $advertencia;
+
+        return $result;
     }
 
-    /** Anula la venta y devuelve el stock (una sola vez). */
-    private function aplicarAnulacion(Sale $sale, string $referencia): void
+    /** Anula la venta, devuelve el stock y reembolsa caja si corresponde (una sola vez). */
+    private function aplicarAnulacion(Sale $sale, string $referencia): ?string
     {
         $sale = Sale::lockForUpdate()->findOrFail($sale->id);
         if ($sale->estado === 'anulada') {
-            return;
+            return null;
         }
 
         $sale->loadMissing('items');
@@ -194,5 +201,16 @@ class VoidedService
         }
 
         $sale->update(['estado' => 'anulada', 'sunat_estado' => 'anulado']);
+
+        $cobrado = (float) $sale->monto_cobrado;
+        if ($cobrado > 0 && $sale->metodo_pago === 'efectivo') {
+            $ok = $this->cash->registrarReembolsoVenta($sale, $cobrado);
+            if (! $ok) {
+                return 'No se pudo registrar el reembolso de ' . number_format($cobrado, 2)
+                    . ' en caja: no hay una sesión de caja abierta.';
+            }
+        }
+
+        return null;
     }
 }

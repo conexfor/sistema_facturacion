@@ -77,12 +77,43 @@ class VoidedController extends Controller
         ]);
 
         try {
-            $this->voided->anular(Sale::findOrFail($data['sale_id']), $data['motivo']);
+            $voided = $this->voided->anular(Sale::findOrFail($data['sale_id']), $data['motivo']);
         } catch (Throwable $e) {
             return back()->with('error', $e->getMessage());
         }
 
-        return back()->with('success', 'Comunicación de baja registrada.');
+        $msg = 'Comunicación de baja registrada.';
+        if ($voided->advertenciaCaja) {
+            return back()->with('warning', $msg . ' ' . $voided->advertenciaCaja);
+        }
+
+        return back()->with('success', $msg);
+    }
+
+    /** Reintenta el envío de una baja que fue rechazada por SUNAT. */
+    public function reenviar(VoidedDocument $voidedDocument): RedirectResponse
+    {
+        try {
+            $voidedDocument = $this->voided->enviar($voidedDocument);
+        } catch (Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        $msg = match ($voidedDocument->estado) {
+            'enviado' => "Baja {$voidedDocument->identificador} reenviada. Consulta el estado para obtener el CDR.",
+            'simulado' => "Baja {$voidedDocument->identificador} generada en modo simulación.",
+            'rechazado' => "Baja rechazada: {$voidedDocument->mensaje}",
+            default => $voidedDocument->mensaje ?? 'Reenvío procesado.',
+        };
+
+        if ($voidedDocument->estado === 'rechazado') {
+            return back()->with('error', $msg);
+        }
+        if ($voidedDocument->advertenciaCaja) {
+            return back()->with('warning', $msg . ' ' . $voidedDocument->advertenciaCaja);
+        }
+
+        return back()->with('success', $msg);
     }
 
     public function consultar(VoidedDocument $voidedDocument): RedirectResponse
@@ -99,7 +130,14 @@ class VoidedController extends Controller
             default => $voidedDocument->mensaje ?? 'Consulta realizada.',
         };
 
-        return back()->with($voidedDocument->estado === 'observado' ? 'error' : 'success', $msg);
+        if ($voidedDocument->estado === 'observado') {
+            return back()->with('error', $msg);
+        }
+        if ($voidedDocument->advertenciaCaja) {
+            return back()->with('warning', $msg . ' ' . $voidedDocument->advertenciaCaja);
+        }
+
+        return back()->with('success', $msg);
     }
 
     public function xml(VoidedDocument $voidedDocument): StreamedResponse

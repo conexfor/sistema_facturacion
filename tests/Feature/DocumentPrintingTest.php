@@ -82,7 +82,7 @@ class DocumentPrintingTest extends TestCase
             'tipo' => 'credito',
             'cod_motivo' => '01',
             'des_motivo' => 'Anulación de la operación',
-        ])->assertSessionHas('success');
+        ]);
 
         $note = Note::firstOrFail();
 

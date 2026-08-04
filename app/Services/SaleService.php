@@ -56,6 +56,19 @@ class SaleService
             throw new RuntimeException('Para emitir una factura el cliente debe tener RUC.');
         }
 
+        // SUNAT exige identificar al cliente en boletas mayores a S/ 700 (con
+        // DNI o RUC). Se valida aquí, al vender, para no dejar comprobantes
+        // que luego no se puedan emitir por falta de este dato.
+        if ($tipo === 'boleta') {
+            $totalEstimado = collect($data['items'])->sum(
+                fn ($row) => (float) $row['cantidad'] * (float) $row['precio_unitario'] - (float) ($row['descuento'] ?? 0),
+            );
+            $identificado = $customer && $customer->tipo_documento !== '0' && ! empty($customer->numero_documento);
+            if ($totalEstimado > 700 && ! $identificado) {
+                throw new RuntimeException('Las boletas mayores a S/ 700 deben identificar al cliente con DNI o RUC.');
+            }
+        }
+
         return DB::transaction(function () use ($data, $user, $company, $igvPct, $tipo, $serie, $warehouse, $customer) {
             $subtotal = 0.0;
             $igvTotal = 0.0;

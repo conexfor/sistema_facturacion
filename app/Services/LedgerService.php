@@ -61,6 +61,9 @@ class LedgerService
                 $per, $i, Carbon::parse($n->fecha), $n->tipo_doc, $n->serie, $n->correlativo,
                 $n->sale?->customer?->tipo_documento ?? '0', $n->sale?->cliente_documento, $n->sale?->cliente_nombre ?? '-',
                 $signo * (float) $n->subtotal, $signo * (float) $n->igv, $signo * (float) $n->total,
+                self::TIPO_COMP[$n->sale?->tipo_comprobante ?? ''] ?? '',
+                $n->sale?->serie ?? '',
+                $n->sale ? str_pad((string) $n->sale->correlativo, 6, '0', STR_PAD_LEFT) : '',
             );
         }
 
@@ -133,6 +136,7 @@ class LedgerService
     private function lineaVenta(
         string $per, int $i, Carbon $fecha, string $tipoComp, string $serie, int $correlativo,
         string $tipoDocCli, ?string $numDocCli, string $razon, float $base, float $igv, float $importe,
+        string $tipoDocMod = '', string $serieMod = '', string $numMod = '',
     ): string {
         return implode('|', [
             $per,                          // 1 periodo
@@ -157,7 +161,7 @@ class LedgerService
             '0.00', '0.00', '0.00', '0.00', // 20-23 ISC/otros
             $this->n($importe),            // 24 importe total
             '1.000',                       // 25 tipo cambio
-            '', '', '', '',                // 26-29 doc modificado (notas)
+            $tipoDocMod, $serieMod, $numMod, '', // 26-29 doc modificado (notas)
             '1',                           // estado
         ]);
     }

@@ -92,7 +92,10 @@ class NoteService
             // Reembolso del efectivo cobrado a la caja abierta (si aplica)
             $cobrado = (float) $sale->monto_cobrado;
             if ($cobrado > 0 && $sale->metodo_pago === 'efectivo') {
-                $this->cash->registrarReembolsoVenta($sale, $cobrado);
+                if (! $this->cash->registrarReembolsoVenta($sale, $cobrado)) {
+                    $note->advertenciaCaja = 'No se pudo registrar el reembolso de '
+                        . number_format($cobrado, 2) . ' en caja: no hay una sesión de caja abierta.';
+                }
             }
 
             $sale->update(['estado' => 'anulada']);
@@ -197,7 +200,11 @@ class NoteService
             // Reembolso proporcional en efectivo (acotado a lo cobrado)
             $cobrado = (float) $sale->monto_cobrado;
             if ($cobrado > 0 && $sale->metodo_pago === 'efectivo') {
-                $this->cash->registrarReembolsoVenta($sale, min(round($total, 2), $cobrado));
+                $montoReembolso = min(round($total, 2), $cobrado);
+                if (! $this->cash->registrarReembolsoVenta($sale, $montoReembolso)) {
+                    $note->advertenciaCaja = 'No se pudo registrar el reembolso de '
+                        . number_format($montoReembolso, 2) . ' en caja: no hay una sesión de caja abierta.';
+                }
             }
 
             // Si tras esta devolución todo quedó devuelto, anular la venta

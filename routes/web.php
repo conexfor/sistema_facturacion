@@ -20,6 +20,7 @@ use App\Http\Controllers\Sales\PosController;
 use App\Http\Controllers\Sales\QuoteController;
 use App\Http\Controllers\Sales\SaleController;
 use App\Http\Controllers\Settings\BranchController;
+use App\Http\Controllers\Settings\CompanyController;
 use App\Http\Controllers\Settings\RoleController;
 use App\Http\Controllers\Settings\SettingsController;
 use App\Http\Controllers\Settings\SunatController;
@@ -167,6 +168,7 @@ Route::middleware(['auth', 'verified', 'permission:ventas.gestionar'])->prefix('
     Route::get('/', [VoidedController::class, 'index'])->name('index');
     Route::get('buscar-facturas', [VoidedController::class, 'buscarFacturas'])->name('buscar-facturas');
     Route::post('anular', [VoidedController::class, 'anular'])->name('anular');
+    Route::post('{voidedDocument}/reenviar', [VoidedController::class, 'reenviar'])->name('reenviar');
     Route::post('{voidedDocument}/consultar', [VoidedController::class, 'consultar'])->name('consultar');
     Route::get('{voidedDocument}/xml', [VoidedController::class, 'xml'])->name('xml');
     Route::get('{voidedDocument}/cdr', [VoidedController::class, 'cdr'])->name('cdr');
@@ -199,6 +201,9 @@ Route::middleware(['auth', 'verified'])->prefix('configuracion')->name('settings
 });
 
 Route::middleware(['auth', 'verified', 'permission:configuracion.gestionar'])->prefix('configuracion')->name('settings.')->group(function () {
+    Route::get('empresa', [CompanyController::class, 'edit'])->name('empresa.edit');
+    Route::post('empresa', [CompanyController::class, 'update'])->name('empresa.update');
+
     Route::get('sunat', [SunatController::class, 'edit'])->name('sunat.edit');
     Route::post('sunat', [SunatController::class, 'update'])->name('sunat.update');
 

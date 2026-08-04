@@ -52,6 +52,8 @@ class NotesTest extends TestCase
     {
         Storage::fake('local');
         $user = $this->admin();
+        $this->actingAs($user);
+        app(CashService::class)->abrir(CashRegister::firstOrFail(), 0);
         $product = Product::where('codigo', 'P0001')->firstOrFail();
         $warehouse = Warehouse::where('codigo', 'ALM01')->firstOrFail();
         $sale = $this->venta($user, 'boleta'); // stock 120 -> 118
@@ -127,10 +129,30 @@ class NotesTest extends TestCase
         ]);
     }
 
+    public function test_credit_note_avisa_si_no_hay_caja_abierta_para_reembolsar(): void
+    {
+        Storage::fake('local');
+        $user = $this->admin();
+        $sale = $this->venta($user, 'boleta'); // efectivo, sin caja abierta
+
+        $this->actingAs($user)->post(route('notas.store'), [
+            'sale_id' => $sale->id,
+            'tipo' => 'credito',
+            'cod_motivo' => '01',
+            'des_motivo' => 'Anulación de la operación',
+        ])->assertSessionHas('warning');
+
+        // La nota y la anulación se aplican igual; solo el reembolso de caja queda pendiente.
+        $this->assertEquals('anulada', $sale->refresh()->estado);
+        $this->assertDatabaseMissing('cash_movements', ['sale_id' => $sale->id, 'categoria' => 'reembolso']);
+    }
+
     public function test_credit_note_parcial_devuelve_solo_lo_indicado(): void
     {
         Storage::fake('local');
         $user = $this->admin();
+        $this->actingAs($user);
+        app(CashService::class)->abrir(CashRegister::firstOrFail(), 0);
         $product = Product::where('codigo', 'P0001')->firstOrFail();
         $warehouse = Warehouse::where('codigo', 'ALM01')->firstOrFail();
         $sale = $this->venta($user, 'boleta'); // 2 und, total 60, stock 120 -> 118

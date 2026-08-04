@@ -58,7 +58,7 @@ class SummaryBuilder
             ->setCorrelativo((string) $summary->correlativo)
             ->setFecGeneracion($summary->fecha_referencia)
             ->setFecResumen($summary->fecha_envio)
-            ->setMoneda('PEN')
+            ->setMoneda($companyModel->moneda ?: 'PEN')
             ->setCompany($this->company($companyModel))
             ->setDetails($details);
     }
