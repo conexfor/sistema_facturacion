@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Product;
 use App\Models\User;
 use App\Models\Warehouse;
+use Database\Seeders\TestSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
@@ -15,7 +16,7 @@ class ReportsTest extends TestCase
 
     private function adminConVenta(): User
     {
-        $this->seed();
+        $this->seed(TestSeeder::class);
         $user = User::where('email', 'admin@erp.test')->firstOrFail();
         $product = Product::where('codigo', 'P0001')->firstOrFail();
         $warehouse = Warehouse::where('codigo', 'ALM01')->firstOrFail();

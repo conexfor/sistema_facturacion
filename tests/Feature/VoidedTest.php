@@ -9,6 +9,7 @@ use App\Models\Warehouse;
 use App\Services\ElectronicInvoiceService;
 use App\Services\SaleService;
 use App\Services\VoidedService;
+use Database\Seeders\TestSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -18,7 +19,7 @@ class VoidedTest extends TestCase
 
     public function test_baja_factura_simulada_anula_y_devuelve_stock(): void
     {
-        $this->seed();
+        $this->seed(TestSeeder::class);
         $user = User::where('email', 'admin@erp.test')->firstOrFail();
         $this->actingAs($user);
 
@@ -62,7 +63,7 @@ class VoidedTest extends TestCase
 
     public function test_boletas_no_usan_comunicacion_de_baja(): void
     {
-        $this->seed();
+        $this->seed(TestSeeder::class);
         $user = User::where('email', 'admin@erp.test')->firstOrFail();
         $this->actingAs($user);
 

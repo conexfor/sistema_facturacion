@@ -7,6 +7,7 @@ use App\Models\Quote;
 use App\Models\Sale;
 use App\Models\User;
 use App\Models\Warehouse;
+use Database\Seeders\TestSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -16,7 +17,7 @@ class QuoteTest extends TestCase
 
     private function admin(): User
     {
-        $this->seed();
+        $this->seed(TestSeeder::class);
 
         return User::where('email', 'admin@erp.test')->firstOrFail();
     }

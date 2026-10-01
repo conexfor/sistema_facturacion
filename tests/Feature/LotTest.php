@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\ProductLot;
 use App\Models\User;
 use App\Models\Warehouse;
+use Database\Seeders\TestSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -15,7 +16,7 @@ class LotTest extends TestCase
 
     private function admin(): User
     {
-        $this->seed();
+        $this->seed(TestSeeder::class);
 
         return User::where('email', 'admin@erp.test')->firstOrFail();
     }

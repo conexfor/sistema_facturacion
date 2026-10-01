@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\SaleService;
 use App\Services\SummaryService;
+use Database\Seeders\TestSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -17,7 +18,7 @@ class SummaryTest extends TestCase
 
     public function test_resumen_diario_agrupa_y_envia_en_simulacion(): void
     {
-        $this->seed();
+        $this->seed(TestSeeder::class);
         $user = User::where('email', 'admin@erp.test')->firstOrFail();
         $this->actingAs($user);
 
@@ -66,7 +67,7 @@ class SummaryTest extends TestCase
 
     public function test_no_genera_resumen_sin_boletas(): void
     {
-        $this->seed();
+        $this->seed(TestSeeder::class);
         $this->actingAs(User::where('email', 'admin@erp.test')->firstOrFail());
 
         $this->expectException(\RuntimeException::class);

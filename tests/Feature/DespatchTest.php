@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Despatch;
 use App\Models\Product;
 use App\Models\User;
+use Database\Seeders\TestSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -15,7 +16,7 @@ class DespatchTest extends TestCase
 
     private function admin(): User
     {
-        $this->seed();
+        $this->seed(TestSeeder::class);
 
         return User::where('email', 'admin@erp.test')->firstOrFail();
     }

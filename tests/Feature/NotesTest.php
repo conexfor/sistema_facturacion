@@ -10,6 +10,7 @@ use App\Models\Sale;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\CashService;
+use Database\Seeders\TestSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -20,7 +21,7 @@ class NotesTest extends TestCase
 
     private function admin(): User
     {
-        $this->seed();
+        $this->seed(TestSeeder::class);
 
         return User::where('email', 'admin@erp.test')->firstOrFail();
     }
