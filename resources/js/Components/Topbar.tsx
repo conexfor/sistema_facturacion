@@ -1,18 +1,33 @@
-import Dropdown from '@/Components/Dropdown';
 import NotificationsBell from '@/Components/NotificationsBell';
+import { isActive } from '@/Components/SidebarContent';
+import { navigation } from '@/config/navigation';
 import { useTheme } from '@/hooks/useTheme';
-import { usePage } from '@inertiajs/react';
-import {
-    ChevronDown,
-    LogOut,
-    MapPin,
-    Menu,
-    Moon,
-    PanelLeft,
-    Settings,
-    Sun,
-    UserCircle,
-} from 'lucide-react';
+import { Link, usePage } from '@inertiajs/react';
+import { MapPin, Menu, Moon, Plus, Sun } from 'lucide-react';
+
+function currentSectionTitle(): string {
+    for (const section of navigation) {
+        const item = section.items.find(isActive);
+        if (item) return item.label;
+    }
+    try {
+        if (route().current('profile.*')) return 'Mi perfil';
+        if (route().current('settings.*')) return 'Configuración';
+    } catch {
+        // rutas no disponibles
+    }
+    return 'Panel';
+}
+
+const today = new Date().toLocaleDateString('es-PE', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+});
+
+const iconBtn =
+    'rounded-lg p-2 text-slate-500 transition duration-200 hover:bg-slate-100 hover:text-slate-800 dark:text-ff-muted dark:hover:bg-white/5 dark:hover:text-ff-text';
 
 export default function Topbar({
     onToggleCollapse,
@@ -21,94 +36,57 @@ export default function Topbar({
     onToggleCollapse: () => void;
     onOpenMobile: () => void;
 }) {
-    const { user, branch } = usePage().props.auth;
+    const { branch, permissions } = usePage().props.auth;
     const { isDark, toggleTheme } = useTheme();
+    const puedeVender = permissions.includes('ventas.gestionar');
 
     return (
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-slate-200 bg-white/90 px-3 backdrop-blur-sm sm:px-4 dark:border-slate-800 dark:bg-slate-900/90">
-            {/* Toggle móvil */}
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-slate-200 bg-white/80 px-4 backdrop-blur-xl sm:px-6 dark:border-white/[0.06] dark:bg-[#070b14]/70">
+            {/* Hamburguesa: drawer en móvil, colapsar en escritorio */}
+            <button onClick={onOpenMobile} className={`${iconBtn} lg:hidden`} aria-label="Abrir menú">
+                <Menu className="size-5" />
+            </button>
             <button
-                onClick={onOpenMobile}
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden dark:text-slate-400 dark:hover:bg-slate-800"
-                aria-label="Abrir menú"
+                onClick={onToggleCollapse}
+                className={`${iconBtn} hidden lg:block`}
+                aria-label="Colapsar menú"
             >
                 <Menu className="size-5" />
             </button>
 
-            {/* Toggle colapsar (escritorio) */}
-            <button
-                onClick={onToggleCollapse}
-                className="hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:block dark:text-slate-400 dark:hover:bg-slate-800"
-                aria-label="Colapsar menú"
-            >
-                <PanelLeft className="size-5" />
-            </button>
+            {/* Título de sección + fecha */}
+            <div className="min-w-0">
+                <h2 className="truncate font-display text-lg font-semibold leading-tight tracking-tight text-slate-800 dark:text-ff-text">
+                    {currentSectionTitle()}
+                </h2>
+                <p className="hidden truncate font-mono text-[11px] capitalize text-slate-400 sm:block dark:text-ff-dim">
+                    {today}
+                </p>
+            </div>
 
-            <div className="ml-auto flex items-center gap-1 sm:gap-2">
-                {/* Sucursal actual */}
+            <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
                 {branch && (
-                    <span className="hidden items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 md:inline-flex dark:bg-slate-800 dark:text-slate-300">
-                        <MapPin className="size-3.5 text-brand-500" />
+                    <span className="hidden items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 md:inline-flex dark:border-white/[0.06] dark:bg-white/[0.03] dark:text-ff-muted">
+                        <MapPin className="size-3.5 text-brand-500 dark:text-ff-cyan" />
                         {branch.nombre}
                     </span>
                 )}
 
-                {/* Tema */}
-                <button
-                    onClick={toggleTheme}
-                    className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-                    aria-label="Cambiar tema"
-                >
-                    {isDark ? (
-                        <Sun className="size-5" />
-                    ) : (
-                        <Moon className="size-5" />
-                    )}
+                <button onClick={toggleTheme} className={iconBtn} aria-label="Cambiar tema">
+                    {isDark ? <Sun className="size-5" /> : <Moon className="size-5" />}
                 </button>
 
-                {/* Notificaciones */}
                 <NotificationsBell />
 
-                {/* Usuario */}
-                <Dropdown>
-                    <Dropdown.Trigger>
-                        <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-slate-100 dark:hover:bg-slate-800">
-                            <span className="flex size-8 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
-                                {user.name.charAt(0).toUpperCase()}
-                            </span>
-                            <span className="hidden text-left sm:block">
-                                <span className="block text-sm font-semibold leading-tight text-slate-700 dark:text-slate-200">
-                                    {user.name}
-                                </span>
-                                <span className="block text-xs leading-tight text-slate-400">
-                                    {user.position ?? user.email}
-                                </span>
-                            </span>
-                            <ChevronDown className="size-4 text-slate-400" />
-                        </button>
-                    </Dropdown.Trigger>
-                    <Dropdown.Content>
-                        <Dropdown.Link href={route('profile.edit')}>
-                            <span className="flex items-center gap-2">
-                                <UserCircle className="size-4" /> Mi perfil
-                            </span>
-                        </Dropdown.Link>
-                        <Dropdown.Link href={route('settings.index')}>
-                            <span className="flex items-center gap-2">
-                                <Settings className="size-4" /> Configuración
-                            </span>
-                        </Dropdown.Link>
-                        <Dropdown.Link
-                            href={route('logout')}
-                            method="post"
-                            as="button"
-                        >
-                            <span className="flex items-center gap-2">
-                                <LogOut className="size-4" /> Cerrar sesión
-                            </span>
-                        </Dropdown.Link>
-                    </Dropdown.Content>
-                </Dropdown>
+                {puedeVender && (
+                    <Link
+                        href={route('ventas.pos')}
+                        className="ff-btn-primary ml-1 inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 font-display text-sm font-semibold transition duration-200"
+                    >
+                        <Plus className="size-4" strokeWidth={2.5} />
+                        <span className="hidden sm:inline">Nueva Factura</span>
+                    </Link>
+                )}
             </div>
         </header>
     );

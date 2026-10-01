@@ -16,18 +16,18 @@ export default function Card({
 }>) {
     return (
         <div
-            className={`rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 ${className}`}
+            className={`rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/[0.06] dark:bg-[#0d1426]/60 dark:shadow-none dark:backdrop-blur-md ${className}`}
         >
             {(title || action) && (
-                <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-white/[0.06]">
                     <div>
                         {title && (
-                            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                            <h3 className="font-display text-[15px] font-semibold text-slate-800 dark:text-ff-text">
                                 {title}
                             </h3>
                         )}
                         {subtitle && (
-                            <p className="text-xs text-slate-400">{subtitle}</p>
+                            <p className="text-xs text-slate-400 dark:text-ff-muted">{subtitle}</p>
                         )}
                     </div>
                     {action}

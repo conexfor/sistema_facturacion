@@ -41,14 +41,14 @@ export default function AuthenticatedLayout({
         return () => clearTimeout(t);
     }, [toast]);
 
-    const sidebarWidth = collapsed ? 'lg:w-20' : 'lg:w-72';
-    const mainPad = collapsed ? 'lg:pl-20' : 'lg:pl-72';
+    const sidebarWidth = collapsed ? 'lg:w-[72px]' : 'lg:w-60';
+    const mainPad = collapsed ? 'lg:pl-[72px]' : 'lg:pl-60';
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <div className="ff-mesh min-h-screen">
             {/* Sidebar escritorio */}
             <aside
-                className={`fixed inset-y-0 left-0 z-40 hidden border-r border-slate-200 transition-all duration-200 lg:block dark:border-slate-800 ${sidebarWidth}`}
+                className={`fixed inset-y-0 left-0 z-40 hidden transition-all duration-200 lg:block ${sidebarWidth}`}
             >
                 <SidebarContent collapsed={collapsed} />
             </aside>
@@ -57,10 +57,10 @@ export default function AuthenticatedLayout({
             {mobileOpen && (
                 <div className="fixed inset-0 z-50 lg:hidden">
                     <div
-                        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+                        className="absolute inset-0 bg-[#070b14]/70 backdrop-blur-sm"
                         onClick={() => setMobileOpen(false)}
                     />
-                    <div className="absolute inset-y-0 left-0 w-72 shadow-xl">
+                    <div className="absolute inset-y-0 left-0 w-60 shadow-xl">
                         <button
                             onClick={() => setMobileOpen(false)}
                             className="absolute -right-11 top-3 rounded-lg bg-white/10 p-2 text-white"
@@ -84,19 +84,19 @@ export default function AuthenticatedLayout({
                 />
 
                 {header && (
-                    <div className="border-b border-slate-200 bg-white px-4 py-5 sm:px-6 lg:px-8 dark:border-slate-800 dark:bg-slate-900">
+                    <div className="mx-auto w-full max-w-[1600px] px-4 pt-6 sm:px-6 lg:px-8">
                         {header}
                     </div>
                 )}
 
-                <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+                <main className="mx-auto w-full max-w-[1600px] flex-1 px-4 py-6 sm:px-6 lg:px-8">
                     {children}
                 </main>
             </div>
 
             {/* Toast de mensajes flash */}
             {toast && (
-                <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-xl border bg-white px-4 py-3 shadow-lg dark:bg-slate-800 dark:text-slate-100"
+                <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-xl border bg-white px-4 py-3 shadow-lg dark:bg-[#0d1426]/90 dark:text-ff-text dark:shadow-black/50 dark:backdrop-blur-xl"
                     style={{
                         borderColor:
                             toast.type === 'success' ? '#86efac' : toast.type === 'warning' ? '#fcd34d' : '#fca5a5',

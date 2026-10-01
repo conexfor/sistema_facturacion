@@ -3,18 +3,26 @@
 namespace App\Http\Controllers;
 
 use App\Models\CashSession;
+use App\Models\Customer;
 use App\Models\Product;
-use App\Models\Purchase;
 use App\Models\Sale;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
     private const MESES = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+    private const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+    /** Días tras la emisión a partir de los cuales una venta pendiente se considera vencida. */
+    private const DIAS_VENCIMIENTO = 30;
+
+    /** Margen sobre el promedio de los 3 meses previos que define la meta mensual. */
+    private const META_CRECIMIENTO = 1.10;
 
     public function index(Request $request): Response
     {
@@ -26,19 +34,25 @@ class DashboardController extends Controller
         $inicioMes = Carbon::now()->startOfMonth();
         $inicioMesAnterior = (clone $inicioMes)->subMonth();
 
-        $ventasHoy = (float) Sale::where('estado', '!=', 'anulada')
-            ->whereDate('fecha', $hoy)->sum('total');
-        $ventasMes = (float) Sale::where('estado', '!=', 'anulada')
-            ->where('fecha', '>=', $inicioMes)->sum('total');
-        $ventasMesAnterior = (float) Sale::where('estado', '!=', 'anulada')
-            ->whereBetween('fecha', [$inicioMesAnterior, $inicioMes])->sum('total');
-        $ventasAyer = (float) Sale::where('estado', '!=', 'anulada')
-            ->whereDate('fecha', (clone $hoy)->subDay())->sum('total');
+        $vigentes = fn () => Sale::where('estado', '!=', 'anulada');
+
+        $ventasHoy = (float) $vigentes()->whereDate('fecha', $hoy)->sum('total');
+        $ventasAyer = (float) $vigentes()->whereDate('fecha', (clone $hoy)->subDay())->sum('total');
+        $ventasMes = (float) $vigentes()->where('fecha', '>=', $inicioMes)->sum('total');
+        $ventasMesAnterior = (float) $vigentes()
+            ->where('fecha', '>=', $inicioMesAnterior)->where('fecha', '<', $inicioMes)->sum('total');
+
+        $docsMes = $vigentes()->where('fecha', '>=', $inicioMes)->count();
+        $docsMesAnterior = $vigentes()
+            ->where('fecha', '>=', $inicioMesAnterior)->where('fecha', '<', $inicioMes)->count();
+        $docsHoy = $vigentes()->whereDate('fecha', $hoy)->count();
+
+        $clientesMes = $this->clientesActivos($inicioMes, null);
+        $clientesMesAnterior = $this->clientesActivos($inicioMesAnterior, $inicioMes);
+        $clientesRegistrados = Customer::where('is_active', true)->count();
 
         $porCobrar = (float) Sale::where('estado', 'pendiente')
             ->sum(DB::raw('total - monto_cobrado'));
-        $porPagar = (float) Purchase::whereIn('estado_pago', ['pendiente', 'parcial'])
-            ->sum(DB::raw('total - monto_pagado'));
 
         $stockBajo = Product::where('controla_stock', true)
             ->where('is_active', true)
@@ -51,20 +65,27 @@ class DashboardController extends Controller
             [
                 'key' => 'ventas_hoy', 'label' => 'Ventas de hoy', 'value' => round($ventasHoy, 2),
                 'format' => 'currency', 'delta' => $this->delta($ventasHoy, $ventasAyer),
-                'icon' => 'shopping-cart', 'color' => 'brand',
+                'icon' => 'shopping-cart', 'color' => 'cyan',
+                'hint' => $docsHoy.' '.($docsHoy === 1 ? 'comprobante' : 'comprobantes').' emitidos',
             ],
             [
-                'key' => 'ventas_mes', 'label' => 'Ventas del mes', 'value' => round($ventasMes, 2),
+                'key' => 'ingresos_mes', 'label' => 'Ingresos del mes', 'value' => round($ventasMes, 2),
                 'format' => 'currency', 'delta' => $this->delta($ventasMes, $ventasMesAnterior),
-                'icon' => 'trending-up', 'color' => 'emerald',
+                'icon' => 'trending-up', 'color' => 'blue',
+                'hint' => 'vs. mes anterior',
             ],
             [
-                'key' => 'por_cobrar', 'label' => 'Por cobrar', 'value' => round($porCobrar, 2),
-                'format' => 'currency', 'delta' => 0, 'icon' => 'hand-coins', 'color' => 'amber',
+                'key' => 'facturas_mes', 'label' => 'Comprobantes del mes', 'value' => $docsMes,
+                'format' => 'number', 'delta' => $this->delta($docsMes, $docsMesAnterior),
+                'icon' => 'file-text', 'color' => 'purple',
+                'hint' => 'por cobrar',
+                'hintAmount' => round($porCobrar, 2),
             ],
             [
-                'key' => 'por_pagar', 'label' => 'Por pagar', 'value' => round($porPagar, 2),
-                'format' => 'currency', 'delta' => 0, 'icon' => 'landmark', 'color' => 'rose',
+                'key' => 'clientes_activos', 'label' => 'Clientes activos', 'value' => $clientesMes,
+                'format' => 'number', 'delta' => $this->delta($clientesMes, $clientesMesAnterior),
+                'icon' => 'users', 'color' => 'amber',
+                'hint' => 'de '.$clientesRegistrados.' registrados',
             ],
         ];
 
@@ -82,8 +103,9 @@ class DashboardController extends Controller
             'stats' => $stats,
             'stockBajo' => $stockBajo,
             'caja' => $caja,
-            'salesByMonth' => $this->seriesMensual($cid),
+            'salesByMonth' => $this->seriesMensual(),
             'salesByCategory' => $this->ventasPorCategoria($cid, $inicioMes),
+            'salesByDay' => $this->ventasDiarias(),
             'topProducts' => $this->topProductos($cid, $inicioMes),
             'recentSales' => $this->ultimasVentas(),
         ]);
@@ -98,36 +120,56 @@ class DashboardController extends Controller
         return round(($actual - $anterior) / $anterior * 100, 1);
     }
 
-    /** Ventas vs compras de los últimos 6 meses (agregado en PHP, portable). */
-    private function seriesMensual(?int $cid): array
+    /** Clientes distintos con al menos una venta vigente en el rango. */
+    private function clientesActivos(Carbon $desde, ?Carbon $hasta): int
     {
-        $desde = Carbon::now()->startOfMonth()->subMonths(5);
-
-        $ventas = Sale::where('estado', '!=', 'anulada')
+        return Sale::where('estado', '!=', 'anulada')
             ->where('fecha', '>=', $desde)
-            ->get(['fecha', 'total']);
-        $compras = Purchase::where('fecha', '>=', $desde->toDateString())
-            ->get(['fecha', 'total']);
-
-        $categories = [];
-        $ventasSerie = [];
-        $comprasSerie = [];
-
-        for ($i = 0; $i < 6; $i++) {
-            $mes = (clone $desde)->addMonths($i);
-            $key = $mes->format('Y-m');
-            $categories[] = self::MESES[(int) $mes->format('n')];
-            $ventasSerie[] = round((float) $ventas
-                ->filter(fn ($v) => Carbon::parse($v->fecha)->format('Y-m') === $key)
-                ->sum('total'), 2);
-            $comprasSerie[] = round((float) $compras
-                ->filter(fn ($c) => Carbon::parse($c->fecha)->format('Y-m') === $key)
-                ->sum('total'), 2);
-        }
-
-        return ['categories' => $categories, 'ventas' => $ventasSerie, 'compras' => $comprasSerie];
+            ->when($hasta, fn ($q) => $q->where('fecha', '<', $hasta))
+            ->get(['customer_id', 'cliente_documento', 'cliente_nombre'])
+            ->map(fn ($s) => $s->customer_id
+                ? 'c'.$s->customer_id
+                : 'd'.($s->cliente_documento ?: $s->cliente_nombre))
+            ->unique()
+            ->count();
     }
 
+    /**
+     * Ingresos de los últimos 12 meses y la meta de cada mes
+     * (promedio de los 3 meses previos + 10%). Agregado en PHP, portable.
+     */
+    private function seriesMensual(): array
+    {
+        $meses = 12;
+        $desde = Carbon::now()->startOfMonth()->subMonths($meses - 1);
+        // 3 meses extra para poder calcular la meta del primer mes visible
+        $desdeConsulta = (clone $desde)->subMonths(3);
+
+        $porMes = Sale::where('estado', '!=', 'anulada')
+            ->where('fecha', '>=', $desdeConsulta)
+            ->get(['fecha', 'total'])
+            ->groupBy(fn ($v) => Carbon::parse($v->fecha)->format('Y-m'))
+            ->map(fn ($g) => (float) $g->sum('total'));
+
+        $monto = fn (Carbon $m) => round((float) ($porMes[$m->format('Y-m')] ?? 0), 2);
+
+        $categories = [];
+        $ingresos = [];
+        $meta = [];
+
+        for ($i = 0; $i < $meses; $i++) {
+            $mes = (clone $desde)->addMonths($i);
+            $categories[] = self::MESES[(int) $mes->format('n')];
+            $ingresos[] = $monto($mes);
+
+            $previos = collect([1, 2, 3])->map(fn ($k) => $monto((clone $mes)->subMonths($k)));
+            $meta[] = round($previos->avg() * self::META_CRECIMIENTO, 2);
+        }
+
+        return ['categories' => $categories, 'ingresos' => $ingresos, 'meta' => $meta];
+    }
+
+    /** Las 3 categorías con más ventas del mes + "Otros" con el resto. */
     private function ventasPorCategoria(?int $cid, Carbon $desde): array
     {
         $rows = DB::table('sale_items')
@@ -142,10 +184,42 @@ class DashboardController extends Controller
             ->orderByDesc('monto')
             ->get();
 
-        return [
-            'labels' => $rows->pluck('categoria')->all(),
-            'series' => $rows->map(fn ($r) => round((float) $r->monto, 2))->all(),
-        ];
+        $top = $rows->take(3);
+        $resto = (float) $rows->slice(3)->sum('monto');
+
+        $labels = $top->pluck('categoria')->all();
+        $series = $top->map(fn ($r) => round((float) $r->monto, 2))->all();
+
+        if ($resto > 0) {
+            $labels[] = 'Otros';
+            $series[] = round($resto, 2);
+        }
+
+        return ['labels' => $labels, 'series' => $series];
+    }
+
+    /** Monto y cantidad de comprobantes por día de la semana actual (lun–dom). */
+    private function ventasDiarias(): array
+    {
+        $inicio = Carbon::now()->startOfWeek(Carbon::MONDAY);
+        $fin = (clone $inicio)->addDays(7);
+
+        $porDia = Sale::where('estado', '!=', 'anulada')
+            ->where('fecha', '>=', $inicio)->where('fecha', '<', $fin)
+            ->get(['fecha', 'total'])
+            ->groupBy(fn ($v) => Carbon::parse($v->fecha)->toDateString());
+
+        return collect(range(0, 6))->map(function ($i) use ($inicio, $porDia) {
+            $dia = (clone $inicio)->addDays($i);
+            $ventas = $porDia[$dia->toDateString()] ?? collect();
+
+            return [
+                'dia' => self::DIAS[$dia->dayOfWeek],
+                'fecha' => $dia->toDateString(),
+                'monto' => round((float) $ventas->sum('total'), 2),
+                'cantidad' => $ventas->count(),
+            ];
+        })->all();
     }
 
     private function topProductos(?int $cid, Carbon $desde): array
@@ -169,12 +243,19 @@ class DashboardController extends Controller
 
     private function ultimasVentas(): array
     {
-        return Sale::orderByDesc('id')->limit(6)->get()
+        $limiteVencimiento = Carbon::now()->subDays(self::DIAS_VENCIMIENTO);
+
+        return Sale::orderByDesc('id')->limit(8)->get()
             ->map(fn (Sale $s) => [
+                'id' => $s->id,
                 'doc' => $s->numero,
                 'cliente' => $s->cliente_nombre,
+                'tipo' => $s->tipo_comprobante,
                 'total' => round((float) $s->total, 2),
-                'estado' => ucfirst($s->estado),
+                'estado' => $s->estado === 'pendiente' && $s->fecha < $limiteVencimiento
+                    ? 'vencida'
+                    : $s->estado,
+                'fecha' => $s->fecha?->toDateString(),
             ])->all();
     }
 }

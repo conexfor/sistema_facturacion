@@ -27,6 +27,7 @@
     "dependencies": {
         "apexcharts": "^4.4.0",
         "lucide-react": "^1.21.0",
-        "react-apexcharts": "^1.7.0"
+        "react-apexcharts": "^1.7.0",
+        "recharts": "^3.10.1"
     }
 }

@@ -8,7 +8,7 @@ function getInitialTheme(): Theme {
             ? 'dark'
             : 'light';
     }
-    return 'light';
+    return 'dark';
 }
 
 /**

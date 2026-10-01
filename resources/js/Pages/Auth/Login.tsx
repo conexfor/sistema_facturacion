@@ -1,12 +1,14 @@
-import Checkbox from '@/Components/Checkbox';
 import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import PrimaryButton from '@/Components/PrimaryButton';
-import TextInput from '@/Components/TextInput';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
+
+const labelClass =
+    'block text-[11px] font-semibold uppercase tracking-[0.12em] text-ff-muted';
+
+const inputClass =
+    'block w-full rounded-lg border border-white/[0.08] bg-white/[0.04] py-2.5 ps-10 text-sm text-ff-text placeholder:text-ff-dim transition duration-200 focus:border-[#00d4aa]/50 focus:bg-white/[0.07] focus:outline-none focus:ring-2 focus:ring-[#00d4aa]/15';
 
 export default function Login({
     status,
@@ -33,50 +35,75 @@ export default function Login({
 
     return (
         <GuestLayout>
-            <Head title="Log in" />
+            <Head title="Iniciar sesión" />
+
+            <div className="mb-6">
+                <h1 className="font-display text-2xl font-semibold tracking-tight text-ff-text">
+                    Bienvenido de nuevo
+                </h1>
+                <p className="mt-1 text-sm text-ff-muted">
+                    Ingresa tus credenciales para acceder al sistema.
+                </p>
+            </div>
 
             {status && (
-                <div className="mb-4 text-sm font-medium text-green-600">
+                <div className="mb-4 rounded-lg border border-[#00d4aa]/25 bg-[#00d4aa]/10 px-3 py-2 text-sm font-medium text-ff-cyan">
                     {status}
                 </div>
             )}
 
-            <form onSubmit={submit}>
+            <form onSubmit={submit} className="space-y-5">
                 <div>
-                    <InputLabel htmlFor="email" value="Email" />
-
-                    <TextInput
-                        id="email"
-                        type="email"
-                        name="email"
-                        value={data.email}
-                        className="mt-1 block w-full"
-                        autoComplete="username"
-                        isFocused={true}
-                        onChange={(e) => setData('email', e.target.value)}
-                    />
-
+                    <label htmlFor="email" className={labelClass}>
+                        Correo electrónico
+                    </label>
+                    <div className="relative mt-2">
+                        <Mail className="pointer-events-none absolute inset-y-0 start-3 my-auto size-4 text-ff-dim" />
+                        <input
+                            id="email"
+                            type="email"
+                            name="email"
+                            value={data.email}
+                            className={`${inputClass} pe-3`}
+                            placeholder="usuario@empresa.com"
+                            autoComplete="username"
+                            autoFocus
+                            onChange={(e) => setData('email', e.target.value)}
+                        />
+                    </div>
                     <InputError message={errors.email} className="mt-2" />
                 </div>
 
-                <div className="mt-4">
-                    <InputLabel htmlFor="password" value="Password" />
-
-                    <div className="relative mt-1">
-                        <TextInput
+                <div>
+                    <div className="flex items-center justify-between">
+                        <label htmlFor="password" className={labelClass}>
+                            Contraseña
+                        </label>
+                        {canResetPassword && (
+                            <Link
+                                href={route('password.request')}
+                                className="text-xs font-medium text-ff-cyan transition duration-200 hover:text-[#3de8c4] focus:outline-none focus-visible:underline"
+                            >
+                                ¿Olvidaste tu contraseña?
+                            </Link>
+                        )}
+                    </div>
+                    <div className="relative mt-2">
+                        <Lock className="pointer-events-none absolute inset-y-0 start-3 my-auto size-4 text-ff-dim" />
+                        <input
                             id="password"
                             type={showPassword ? 'text' : 'password'}
                             name="password"
                             value={data.password}
-                            className="block w-full pe-10"
+                            className={`${inputClass} pe-10`}
+                            placeholder="••••••••"
                             autoComplete="current-password"
                             onChange={(e) => setData('password', e.target.value)}
                         />
-
                         <button
                             type="button"
                             onClick={() => setShowPassword((v) => !v)}
-                            className="absolute inset-y-0 end-0 flex items-center pe-3 text-gray-400 hover:text-gray-600 focus:outline-none dark:text-gray-500 dark:hover:text-gray-300"
+                            className="absolute inset-y-0 end-0 flex items-center pe-3 text-ff-dim transition duration-200 hover:text-ff-muted focus:outline-none"
                             aria-label={
                                 showPassword
                                     ? 'Ocultar contraseña'
@@ -90,48 +117,60 @@ export default function Login({
                             tabIndex={-1}
                         >
                             {showPassword ? (
-                                <EyeOff className="size-5" />
+                                <EyeOff className="size-4" />
                             ) : (
-                                <Eye className="size-5" />
+                                <Eye className="size-4" />
                             )}
                         </button>
                     </div>
-
                     <InputError message={errors.password} className="mt-2" />
                 </div>
 
-                <div className="mt-4 block">
-                    <label className="flex items-center">
-                        <Checkbox
-                            name="remember"
-                            checked={data.remember}
-                            onChange={(e) =>
-                                setData(
-                                    'remember',
-                                    (e.target.checked || false) as false,
-                                )
-                            }
-                        />
-                        <span className="ms-2 text-sm text-gray-600 dark:text-gray-400">
-                            Remember me
-                        </span>
-                    </label>
-                </div>
+                <label className="flex cursor-pointer select-none items-center gap-2.5">
+                    <input
+                        type="checkbox"
+                        name="remember"
+                        checked={data.remember}
+                        onChange={(e) =>
+                            setData('remember', (e.target.checked || false) as false)
+                        }
+                        className="size-4 rounded border-white/15 bg-white/[0.04] text-[#00d4aa] focus:ring-[#00d4aa]/30 focus:ring-offset-0"
+                    />
+                    <span className="text-sm text-ff-muted">
+                        Mantener sesión iniciada
+                    </span>
+                </label>
 
-                <div className="mt-4 flex items-center justify-end">
-                    {canResetPassword && (
-                        <Link
-                            href={route('password.request')}
-                            className="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:text-gray-400 dark:hover:text-gray-100 dark:focus:ring-offset-gray-800"
+                <button
+                    type="submit"
+                    disabled={processing}
+                    className="ff-btn-primary flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 font-display text-sm font-semibold tracking-wide transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00d4aa]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d1426] disabled:cursor-wait disabled:opacity-80"
+                >
+                    {processing && (
+                        <svg
+                            className="size-4 animate-spin"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            aria-hidden
                         >
-                            Forgot your password?
-                        </Link>
+                            <circle
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeOpacity="0.25"
+                                strokeWidth="3"
+                            />
+                            <path
+                                d="M22 12a10 10 0 0 0-10-10"
+                                stroke="currentColor"
+                                strokeWidth="3"
+                                strokeLinecap="round"
+                            />
+                        </svg>
                     )}
-
-                    <PrimaryButton className="ms-4" disabled={processing}>
-                        Log in
-                    </PrimaryButton>
-                </div>
+                    {processing ? 'Ingresando…' : 'Iniciar sesión'}
+                </button>
             </form>
         </GuestLayout>
     );

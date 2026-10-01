@@ -13,13 +13,14 @@ export default function NotificationsBell() {
         <div className="relative">
             <button
                 onClick={() => setOpen((o) => !o)}
-                className="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-                aria-label="Notificaciones"
+                className="relative rounded-lg p-2 text-slate-500 transition duration-200 hover:bg-slate-100 hover:text-slate-800 dark:text-ff-muted dark:hover:bg-white/5 dark:hover:text-ff-text"
+                aria-label={count > 0 ? `Notificaciones (${count})` : 'Notificaciones'}
             >
                 <Bell className="size-5" />
                 {count > 0 && (
-                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-white dark:ring-slate-900">
-                        {count > 9 ? '9+' : count}
+                    <span className="absolute right-1.5 top-1.5 flex size-2">
+                        <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#f43f5e] opacity-60" />
+                        <span className="relative inline-flex size-2 rounded-full bg-[#f43f5e] ring-2 ring-white dark:ring-[#070b14]" />
                     </span>
                 )}
             </button>
@@ -31,8 +32,8 @@ export default function NotificationsBell() {
                         className="fixed inset-0 z-40"
                         onClick={() => setOpen(false)}
                     />
-                    <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
-                        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-700">
+                    <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-white/[0.08] dark:bg-[#0d1426]/95 dark:shadow-black/50 dark:backdrop-blur-xl">
+                        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-white/[0.06]">
                             <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                                 Notificaciones
                             </span>
@@ -52,13 +53,13 @@ export default function NotificationsBell() {
                                 </p>
                             </div>
                         ) : (
-                            <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto dark:divide-slate-700">
+                            <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto dark:divide-white/[0.04]">
                                 {items.map((p) => (
                                     <li key={p.id}>
                                         <Link
                                             href={route('inventario.productos.edit', p.id)}
                                             onClick={() => setOpen(false)}
-                                            className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                                            className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/[0.04]"
                                         >
                                             <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
                                                 <PackageOpen className="size-4" />
@@ -88,7 +89,7 @@ export default function NotificationsBell() {
                         <Link
                             href={route('inventario.productos.index')}
                             onClick={() => setOpen(false)}
-                            className="block border-t border-slate-100 px-4 py-2.5 text-center text-sm font-medium text-brand-600 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/50"
+                            className="block border-t border-slate-100 px-4 py-2.5 text-center text-sm font-medium text-brand-600 hover:bg-slate-50 dark:border-white/[0.06] dark:hover:bg-white/[0.04]"
                         >
                             Ver inventario
                         </Link>
