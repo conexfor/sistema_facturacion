@@ -45,4 +45,9 @@ class Transfer extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function despatches(): HasMany
+    {
+        return $this->hasMany(Despatch::class);
+    }
 }

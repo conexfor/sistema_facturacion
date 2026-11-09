@@ -31,6 +31,10 @@ use App\Http\Controllers\Sunat\LedgerController;
 use App\Http\Controllers\Sunat\NoteController;
 use App\Http\Controllers\Sunat\SummaryController;
 use App\Http\Controllers\Sunat\VoidedController;
+use App\Http\Controllers\Transport\CarrierController;
+use App\Http\Controllers\Transport\DriverController;
+use App\Http\Controllers\Transport\TripController;
+use App\Http\Controllers\Transport\VehicleController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -194,6 +198,31 @@ Route::middleware(['auth', 'verified', 'permission:ventas.gestionar'])->prefix('
     Route::get('{despatch}/pdf', [DespatchController::class, 'pdf'])->name('pdf');
     Route::get('{despatch}/xml', [DespatchController::class, 'xml'])->name('xml');
     Route::get('{despatch}/cdr', [DespatchController::class, 'cdr'])->name('cdr');
+});
+
+Route::middleware(['auth', 'verified', 'permission:transporte.gestionar'])->prefix('transporte')->name('transporte.')->group(function () {
+    Route::resource('vehiculos', VehicleController::class)
+        ->parameters(['vehiculos' => 'vehicle'])
+        ->only(['index', 'store', 'update', 'destroy']);
+
+    Route::get('conductores/consultar-documento', [DriverController::class, 'consultar'])->name('conductores.consultar');
+    Route::resource('conductores', DriverController::class)
+        ->parameters(['conductores' => 'driver'])
+        ->only(['index', 'store', 'update', 'destroy']);
+
+    Route::get('transportistas/consultar-documento', [CarrierController::class, 'consultar'])->name('transportistas.consultar');
+    Route::resource('transportistas', CarrierController::class)
+        ->parameters(['transportistas' => 'carrier'])
+        ->only(['index', 'store', 'update', 'destroy']);
+
+    Route::get('viajes', [TripController::class, 'index'])->name('viajes.index');
+    Route::post('viajes', [TripController::class, 'store'])->name('viajes.store');
+    Route::get('viajes/buscar-guias', [TripController::class, 'buscarGuias'])->name('viajes.buscar-guias');
+    Route::get('viajes/{trip}', [TripController::class, 'show'])->name('viajes.show');
+    Route::put('viajes/{trip}', [TripController::class, 'update'])->name('viajes.update');
+    Route::patch('viajes/{trip}/estado', [TripController::class, 'estado'])->name('viajes.estado');
+    Route::post('viajes/{trip}/guias', [TripController::class, 'asignarGuias'])->name('viajes.guias.store');
+    Route::delete('viajes/{trip}/guias/{despatch}', [TripController::class, 'quitarGuia'])->name('viajes.guias.destroy');
 });
 
 Route::middleware(['auth', 'verified'])->prefix('configuracion')->name('settings.')->group(function () {

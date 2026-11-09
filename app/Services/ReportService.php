@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\Sale;
+use App\Models\Trip;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -42,6 +43,12 @@ class ReportService
             'icon' => 'boxes',
             'filtros' => [],
         ],
+        'transporte' => [
+            'title' => 'Costos de transporte',
+            'description' => 'Viajes, kilometraje y costo por viaje en un rango de fechas.',
+            'icon' => 'truck',
+            'filtros' => ['fechas'],
+        ],
     ];
 
     public function exists(string $key): bool
@@ -70,6 +77,7 @@ class ReportService
             'rentabilidad' => $base + $this->rentabilidad($companyId, $desde, $hasta),
             'compras' => $base + $this->compras($companyId, $desde, $hasta),
             'stock-valorizado' => $base + $this->stockValorizado($companyId),
+            'transporte' => $base + $this->transporte($companyId, $desde, $hasta),
         };
     }
 
@@ -220,6 +228,53 @@ class ReportService
                 ['label' => 'Total', 'value' => round((float) $compras->sum('total'), 2), 'format' => 'currency'],
                 ['label' => 'Pagado', 'value' => round((float) $compras->sum('monto_pagado'), 2), 'format' => 'currency'],
                 ['label' => 'Saldo', 'value' => round((float) $compras->sum(fn ($p) => $p->saldo), 2), 'format' => 'currency'],
+            ],
+        ];
+    }
+
+    private function transporte(int $cid, Carbon $desde, Carbon $hasta): array
+    {
+        $viajes = Trip::with(['vehicle:id,placa', 'driver:id,nombres,apellidos'])
+            ->withCount('despatches')
+            ->where('estado', '!=', 'cancelado')
+            ->whereDate('fecha', '>=', $desde->toDateString())
+            ->whereDate('fecha', '<=', $hasta->toDateString())
+            ->orderBy('fecha')
+            ->get();
+
+        $rows = $viajes->map(fn (Trip $t) => [
+            $t->fecha->format('d/m/Y'),
+            $t->numero,
+            $t->vehicle?->placa ?? '—',
+            $t->driver ? $t->driver->nombre_completo : '—',
+            $t->destino ?: '—',
+            $t->despatches_count,
+            (float) ($t->km_recorridos ?? 0),
+            $t->costo_total,
+            Trip::ESTADOS[$t->estado] ?? $t->estado,
+        ])->all();
+
+        $km = (float) $viajes->sum(fn (Trip $t) => $t->km_recorridos ?? 0);
+        $costo = round((float) $viajes->sum(fn (Trip $t) => $t->costo_total), 2);
+
+        return [
+            'columns' => [
+                ['label' => 'Fecha', 'align' => 'left', 'format' => 'text'],
+                ['label' => 'Viaje', 'align' => 'left', 'format' => 'text'],
+                ['label' => 'Vehículo', 'align' => 'left', 'format' => 'text'],
+                ['label' => 'Conductor', 'align' => 'left', 'format' => 'text'],
+                ['label' => 'Destino', 'align' => 'left', 'format' => 'text'],
+                ['label' => 'Guías', 'align' => 'right', 'format' => 'int'],
+                ['label' => 'Km', 'align' => 'right', 'format' => 'number'],
+                ['label' => 'Costo', 'align' => 'right', 'format' => 'currency'],
+                ['label' => 'Estado', 'align' => 'center', 'format' => 'text'],
+            ],
+            'rows' => $rows,
+            'summary' => [
+                ['label' => 'Viajes', 'value' => $viajes->count(), 'format' => 'int'],
+                ['label' => 'Km recorridos', 'value' => round($km, 1), 'format' => 'number'],
+                ['label' => 'Costo total', 'value' => $costo, 'format' => 'currency'],
+                ['label' => 'Costo por km', 'value' => $km > 0 ? round($costo / $km, 2) : 0, 'format' => 'currency'],
             ],
         ];
     }

@@ -38,6 +38,31 @@ class Despatch extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function vehicle(): BelongsTo
+    {
+        return $this->belongsTo(Vehicle::class);
+    }
+
+    public function driver(): BelongsTo
+    {
+        return $this->belongsTo(Driver::class);
+    }
+
+    public function carrier(): BelongsTo
+    {
+        return $this->belongsTo(Carrier::class);
+    }
+
+    public function transfer(): BelongsTo
+    {
+        return $this->belongsTo(Transfer::class);
+    }
+
+    public function trip(): BelongsTo
+    {
+        return $this->belongsTo(Trip::class);
+    }
+
     public function getNumeroAttribute(): string
     {
         return $this->serie . '-' . str_pad((string) $this->correlativo, 6, '0', STR_PAD_LEFT);

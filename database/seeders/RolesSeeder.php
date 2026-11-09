@@ -16,6 +16,7 @@ class RolesSeeder extends Seeder
         'ventas.gestionar' => 'Gestionar ventas y clientes',
         'compras.gestionar' => 'Gestionar compras y proveedores',
         'caja.gestionar' => 'Gestionar caja y finanzas',
+        'transporte.gestionar' => 'Gestionar transporte (vehículos, conductores, viajes)',
         'reportes.ver' => 'Ver reportes',
         'usuarios.gestionar' => 'Gestionar usuarios y roles',
         'configuracion.gestionar' => 'Gestionar configuración',
@@ -24,7 +25,7 @@ class RolesSeeder extends Seeder
     /** Roles predefinidos con sus permisos. */
     public const ROLES = [
         'Administrador' => ['*'],
-        'Vendedor' => ['dashboard.ver', 'ventas.gestionar'],
+        'Vendedor' => ['dashboard.ver', 'ventas.gestionar', 'transporte.gestionar'],
         'Almacenero' => ['dashboard.ver', 'inventario.gestionar', 'compras.gestionar'],
         'Cajero' => ['dashboard.ver', 'ventas.gestionar', 'caja.gestionar'],
         'Contador' => ['dashboard.ver', 'caja.gestionar', 'compras.gestionar', 'reportes.ver'],

@@ -118,6 +118,9 @@ class DocumentLookupService
             'tipo_documento' => '1',
             'numero_documento' => $dni,
             'razon_social' => trim($nombre),
+            // Por separado para formularios que los piden así (ej. conductores).
+            'nombres' => trim($nombres) ?: null,
+            'apellidos' => trim("{$apePaterno} {$apeMaterno}") ?: null,
             'nombre_comercial' => null,
             'direccion' => $data['direccion'] ?? $data['direccion_completa'] ?? null,
             'ubigeo' => $data['ubigeo'] ?? null,

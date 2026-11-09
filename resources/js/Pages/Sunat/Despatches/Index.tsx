@@ -6,7 +6,7 @@ import PageHeader from '@/Components/ui/PageHeader';
 import SearchInput from '@/Components/ui/SearchInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Despatch, Paginated } from '@/types/models';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Download, FileCheck, Plus, Printer, Receipt, RefreshCw, Send, Truck } from 'lucide-react';
 
 const estadoMeta: Record<string, { label: string; tone: 'emerald' | 'amber' | 'rose' | 'slate' | 'sky' }> = {
@@ -29,6 +29,8 @@ export default function Index({
     guias: Paginated<Despatch>;
     filters: Record<string, string | undefined>;
 }) {
+    const verViajes = usePage().props.auth.permissions.includes('transporte.gestionar');
+
     return (
         <AuthenticatedLayout>
             <Head title="Guías de remisión" />
@@ -82,7 +84,22 @@ export default function Index({
                                                     {numero(g.serie, g.correlativo)}
                                                 </td>
                                                 <td className="py-3 pr-3">{g.dest_nombre}</td>
-                                                <td className="py-3 pr-3 text-slate-500">{g.des_traslado}</td>
+                                                <td className="py-3 pr-3 text-slate-500">
+                                                    {g.des_traslado}
+                                                    <div className="text-xs text-slate-400">
+                                                        {g.mod_traslado === '01'
+                                                            ? g.transportista_nombre
+                                                            : g.vehiculo_placa}
+                                                        {g.trip_id && verViajes && (
+                                                            <Link
+                                                                href={route('transporte.viajes.show', g.trip_id)}
+                                                                className="ml-2 text-brand-600 hover:underline"
+                                                            >
+                                                                Viaje V-{String(g.trip_id).padStart(6, '0')}
+                                                            </Link>
+                                                        )}
+                                                    </div>
+                                                </td>
                                                 <td className="whitespace-nowrap py-3 pr-3 text-xs text-slate-500">
                                                     {new Date(g.fecha_traslado).toLocaleDateString('es-PE')}
                                                 </td>

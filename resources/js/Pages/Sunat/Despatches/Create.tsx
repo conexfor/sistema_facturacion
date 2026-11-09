@@ -5,7 +5,7 @@ import PageHeader from '@/Components/ui/PageHeader';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm } from '@inertiajs/react';
 import axios from 'axios';
-import { Plus, Search, Trash2, Truck, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeftRight, Search, Trash2, Truck, X } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 
 interface VentaOpt {
@@ -14,8 +14,31 @@ interface VentaOpt {
     dest_tipo_doc: string;
     dest_num_doc: string | null;
     dest_nombre: string;
+    llegada_ubigeo: string | null;
     llegada_direccion: string | null;
     items: { product_id: number | null; descripcion: string; cantidad: number; unidad: string }[];
+}
+interface VehiculoOpt {
+    id: number;
+    placa: string;
+    marca: string | null;
+    modelo: string | null;
+    capacidad_kg: string | null;
+}
+interface ConductorOpt {
+    id: number;
+    tipo_doc: string;
+    num_doc: string;
+    nombres: string;
+    apellidos: string;
+    licencia: string;
+    licencia_vence: string | null;
+}
+interface TransportistaOpt {
+    id: number;
+    ruc: string;
+    razon_social: string;
+    nro_mtc: string | null;
 }
 interface ItemLine {
     product_id: number | null;
@@ -23,8 +46,27 @@ interface ItemLine {
     cantidad: number;
     unidad: string;
 }
+interface Prefill {
+    transfer_id: number;
+    referencia: string;
+    cod_traslado: string;
+    des_traslado: string;
+    dest_tipo_doc: string;
+    dest_num_doc: string;
+    dest_nombre: string;
+    partida_ubigeo: string;
+    partida_direccion: string;
+    llegada_ubigeo: string;
+    llegada_direccion: string;
+    items: ItemLine[];
+}
 interface DespatchForm {
     sale_id: number | null;
+    transfer_id: number | null;
+    vehicle_id: number | null;
+    driver_id: number | null;
+    carrier_id: number | null;
+    chofer_tipo_doc: string;
     fecha_emision: string;
     fecha_traslado: string;
     cod_traslado: string;
@@ -59,27 +101,40 @@ export default function Create({
     motivos,
     modalidades,
     empresa,
+    prefill,
+    vehiculos,
+    conductores,
+    transportistas,
 }: {
     motivos: Record<string, string>;
     modalidades: Record<string, string>;
     empresa: { ubigeo: string | null; direccion: string | null };
+    prefill: Prefill | null;
+    vehiculos: VehiculoOpt[];
+    conductores: ConductorOpt[];
+    transportistas: TransportistaOpt[];
 }) {
     const form = useForm<DespatchForm>({
         sale_id: null,
+        transfer_id: prefill?.transfer_id ?? null,
+        vehicle_id: null,
+        driver_id: null,
+        carrier_id: null,
+        chofer_tipo_doc: '1',
         fecha_emision: today(),
         fecha_traslado: today(),
-        cod_traslado: '01',
-        des_traslado: motivos['01'] ?? 'Venta',
+        cod_traslado: prefill?.cod_traslado ?? '01',
+        des_traslado: prefill?.des_traslado ?? motivos['01'] ?? 'Venta',
         mod_traslado: '02',
         peso_total: '1',
         num_bultos: 1,
-        dest_tipo_doc: '6',
-        dest_num_doc: '',
-        dest_nombre: '',
-        partida_ubigeo: empresa.ubigeo ?? '',
-        partida_direccion: empresa.direccion ?? '',
-        llegada_ubigeo: '',
-        llegada_direccion: '',
+        dest_tipo_doc: prefill?.dest_tipo_doc ?? '6',
+        dest_num_doc: prefill?.dest_num_doc ?? '',
+        dest_nombre: prefill?.dest_nombre ?? '',
+        partida_ubigeo: prefill?.partida_ubigeo ?? empresa.ubigeo ?? '',
+        partida_direccion: prefill?.partida_direccion ?? empresa.direccion ?? '',
+        llegada_ubigeo: prefill?.llegada_ubigeo ?? '',
+        llegada_direccion: prefill?.llegada_direccion ?? '',
         transportista_doc: '',
         transportista_nombre: '',
         transportista_mtc: '',
@@ -89,7 +144,7 @@ export default function Create({
         chofer_nombres: '',
         chofer_apellidos: '',
         observacion: '',
-        items: [] as ItemLine[],
+        items: prefill?.items ?? ([] as ItemLine[]),
     });
     const d = form.data;
     const err = form.errors as Record<string, string>;
@@ -120,6 +175,7 @@ export default function Create({
             dest_tipo_doc: v.dest_tipo_doc || '6',
             dest_num_doc: v.dest_num_doc ?? '',
             dest_nombre: v.dest_nombre,
+            llegada_ubigeo: v.llegada_ubigeo ?? prev.llegada_ubigeo,
             llegada_direccion: v.llegada_direccion ?? prev.llegada_direccion,
             items: v.items,
         }));
@@ -136,6 +192,44 @@ export default function Create({
         form.setData('items', items.filter((_, idx) => idx !== i));
 
     const publico = d.mod_traslado === '01';
+
+    const vehiculo = vehiculos.find((v) => v.id === d.vehicle_id) ?? null;
+    const conductor = conductores.find((c) => c.id === d.driver_id) ?? null;
+    const excedeCapacidad =
+        !publico && vehiculo?.capacidad_kg != null && Number(d.peso_total) > Number(vehiculo.capacidad_kg);
+    const licenciaVence = conductor?.licencia_vence?.slice(0, 10) ?? null;
+    const licenciaVencida = !publico && !!licenciaVence && licenciaVence < d.fecha_traslado;
+
+    const elegirVehiculo = (id: string) => {
+        const v = vehiculos.find((x) => String(x.id) === id);
+        form.setData((prev: any) => ({
+            ...prev,
+            vehicle_id: v?.id ?? null,
+            vehiculo_placa: v?.placa ?? '',
+        }));
+    };
+    const elegirConductor = (id: string) => {
+        const c = conductores.find((x) => String(x.id) === id);
+        form.setData((prev: any) => ({
+            ...prev,
+            driver_id: c?.id ?? null,
+            chofer_tipo_doc: c?.tipo_doc ?? '1',
+            chofer_num_doc: c?.num_doc ?? '',
+            chofer_licencia: c?.licencia ?? '',
+            chofer_nombres: c?.nombres ?? '',
+            chofer_apellidos: c?.apellidos ?? '',
+        }));
+    };
+    const elegirTransportista = (id: string) => {
+        const t = transportistas.find((x) => String(x.id) === id);
+        form.setData((prev: any) => ({
+            ...prev,
+            carrier_id: t?.id ?? null,
+            transportista_doc: t?.ruc ?? '',
+            transportista_nombre: t?.razon_social ?? '',
+            transportista_mtc: t?.nro_mtc ?? '',
+        }));
+    };
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
@@ -162,6 +256,14 @@ export default function Create({
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                     <div className="space-y-4 lg:col-span-2">
+                        {prefill ? (
+                            <Card title="Transferencia de referencia">
+                                <div className="flex items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-sm text-slate-800 dark:bg-brand-900/20 dark:text-slate-100">
+                                    <ArrowLeftRight className="size-4 text-brand-600" />
+                                    {prefill.referencia}
+                                </div>
+                            </Card>
+                        ) : (
                         <Card title="Comprobante de referencia (opcional)">
                             {venta ? (
                                 <div className="flex items-center justify-between gap-2 rounded-lg bg-brand-50 px-3 py-2 dark:bg-brand-900/20">
@@ -209,6 +311,7 @@ export default function Create({
                                 </div>
                             )}
                         </Card>
+                        )}
 
                         <Card title="Datos del traslado">
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -382,54 +485,107 @@ export default function Create({
                             />
                             {publico ? (
                                 <div className="mt-3 space-y-3">
+                                    <SelectField
+                                        label="Transportista"
+                                        placeholder="— Ingresar manualmente —"
+                                        value={d.carrier_id ?? ''}
+                                        onChange={(e) => elegirTransportista(e.target.value)}
+                                        error={err.carrier_id}
+                                        options={transportistas.map((t) => ({
+                                            value: t.id,
+                                            label: `${t.razon_social} (${t.ruc})`,
+                                        }))}
+                                    />
                                     <TextField
                                         label="RUC transportista"
                                         value={d.transportista_doc}
                                         onChange={(e) => form.setData('transportista_doc', e.target.value)}
                                         error={err.transportista_doc}
+                                        disabled={!!d.carrier_id}
                                     />
                                     <TextField
                                         label="Razón social transportista"
                                         value={d.transportista_nombre}
                                         onChange={(e) => form.setData('transportista_nombre', e.target.value)}
                                         error={err.transportista_nombre}
+                                        disabled={!!d.carrier_id}
                                     />
                                     <TextField
                                         label="N° registro MTC"
                                         value={d.transportista_mtc}
                                         onChange={(e) => form.setData('transportista_mtc', e.target.value)}
+                                        disabled={!!d.carrier_id}
                                     />
                                 </div>
                             ) : (
                                 <div className="mt-3 space-y-3">
+                                    <SelectField
+                                        label="Vehículo"
+                                        placeholder="— Ingresar manualmente —"
+                                        value={d.vehicle_id ?? ''}
+                                        onChange={(e) => elegirVehiculo(e.target.value)}
+                                        error={err.vehicle_id}
+                                        options={vehiculos.map((v) => ({
+                                            value: v.id,
+                                            label: [v.placa, v.marca, v.modelo].filter(Boolean).join(' · '),
+                                        }))}
+                                    />
                                     <TextField
                                         label="Placa del vehículo"
                                         value={d.vehiculo_placa}
                                         onChange={(e) => form.setData('vehiculo_placa', e.target.value)}
                                         error={err.vehiculo_placa}
+                                        disabled={!!d.vehicle_id}
                                     />
+                                    {excedeCapacidad && (
+                                        <p className="flex items-center gap-1.5 text-xs text-amber-600">
+                                            <AlertTriangle className="size-3.5" />
+                                            El peso supera la capacidad del vehículo ({Number(vehiculo?.capacidad_kg)} kg).
+                                        </p>
+                                    )}
+                                    <SelectField
+                                        label="Conductor"
+                                        placeholder="— Ingresar manualmente —"
+                                        value={d.driver_id ?? ''}
+                                        onChange={(e) => elegirConductor(e.target.value)}
+                                        error={err.driver_id}
+                                        options={conductores.map((c) => ({
+                                            value: c.id,
+                                            label: `${c.apellidos}, ${c.nombres} (${c.num_doc})`,
+                                        }))}
+                                    />
+                                    {licenciaVencida && licenciaVence && (
+                                        <p className="flex items-center gap-1.5 text-xs text-rose-600">
+                                            <AlertTriangle className="size-3.5" />
+                                            Licencia vencida el {licenciaVence.split('-').reverse().join('/')}.
+                                        </p>
+                                    )}
                                     <TextField
                                         label="DNI del conductor"
                                         value={d.chofer_num_doc}
                                         onChange={(e) => form.setData('chofer_num_doc', e.target.value)}
                                         error={err.chofer_num_doc}
+                                        disabled={!!d.driver_id}
                                     />
                                     <TextField
                                         label="Licencia"
                                         value={d.chofer_licencia}
                                         onChange={(e) => form.setData('chofer_licencia', e.target.value)}
                                         error={err.chofer_licencia}
+                                        disabled={!!d.driver_id}
                                     />
                                     <TextField
                                         label="Nombres del conductor"
                                         value={d.chofer_nombres}
                                         onChange={(e) => form.setData('chofer_nombres', e.target.value)}
                                         error={err.chofer_nombres}
+                                        disabled={!!d.driver_id}
                                     />
                                     <TextField
                                         label="Apellidos del conductor"
                                         value={d.chofer_apellidos}
                                         onChange={(e) => form.setData('chofer_apellidos', e.target.value)}
+                                        disabled={!!d.driver_id}
                                     />
                                 </div>
                             )}

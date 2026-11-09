@@ -36,7 +36,7 @@ class WarehouseController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $request->validate($this->rules(null));
-        Warehouse::create($request->only(['codigo', 'nombre', 'direccion', 'branch_id', 'is_main', 'is_active']));
+        Warehouse::create($request->only(['codigo', 'nombre', 'direccion', 'ubigeo', 'branch_id', 'is_main', 'is_active']));
 
         return back()->with('success', 'Almacén creado correctamente.');
     }
@@ -44,7 +44,7 @@ class WarehouseController extends Controller
     public function update(Request $request, Warehouse $warehouse): RedirectResponse
     {
         $request->validate($this->rules($warehouse->id));
-        $warehouse->update($request->only(['codigo', 'nombre', 'direccion', 'branch_id', 'is_main', 'is_active']));
+        $warehouse->update($request->only(['codigo', 'nombre', 'direccion', 'ubigeo', 'branch_id', 'is_main', 'is_active']));
 
         return back()->with('success', 'Almacén actualizado correctamente.');
     }
@@ -75,6 +75,7 @@ class WarehouseController extends Controller
             ],
             'nombre' => ['required', 'string', 'max:255'],
             'direccion' => ['nullable', 'string', 'max:255'],
+            'ubigeo' => ['nullable', 'digits:6'],
             'branch_id' => ['nullable', Rule::exists('branches', 'id')->where('company_id', $companyId)],
             'is_main' => ['boolean'],
             'is_active' => ['boolean'],

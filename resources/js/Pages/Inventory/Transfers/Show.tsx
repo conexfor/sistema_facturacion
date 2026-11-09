@@ -4,10 +4,15 @@ import PageHeader from '@/Components/ui/PageHeader';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { formatNumber } from '@/lib/format';
 import { Transfer } from '@/types/models';
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { Head, Link, usePage } from '@inertiajs/react';
+import { ArrowLeft, ArrowRight, Printer, Truck } from 'lucide-react';
 
 export default function Show({ transfer }: { transfer: Transfer }) {
+    const { permissions } = usePage().props.auth;
+    const puedeEmitirGuia = permissions.includes('ventas.gestionar');
+    const guia = transfer.despatches?.[0];
+    const numeroGuia = guia ? `${guia.serie}-${String(guia.correlativo).padStart(6, '0')}` : null;
+
     return (
         <AuthenticatedLayout>
             <Head title={`Transferencia #${transfer.id}`} />
@@ -21,9 +26,32 @@ export default function Show({ transfer }: { transfer: Transfer }) {
                         { label: `#${transfer.id}` },
                     ]}
                     actions={
-                        <Link href={route('inventario.transferencias.index')} className={buttonClasses('secondary')}>
-                            <ArrowLeft className="size-4" /> Volver
-                        </Link>
+                        <>
+                            <Link href={route('inventario.transferencias.index')} className={buttonClasses('secondary')}>
+                                <ArrowLeft className="size-4" /> Volver
+                            </Link>
+                            {guia && !puedeEmitirGuia && (
+                                <span className="text-sm text-slate-500">Guía {numeroGuia}</span>
+                            )}
+                            {guia && puedeEmitirGuia && (
+                                <a
+                                    href={route('guias.pdf', guia.id)}
+                                    target="_blank"
+                                    rel="noopener"
+                                    className={buttonClasses('secondary')}
+                                >
+                                    <Printer className="size-4" /> Guía {numeroGuia}
+                                </a>
+                            )}
+                            {!guia && puedeEmitirGuia && (
+                                <Link
+                                    href={route('guias.create', { transfer: transfer.id })}
+                                    className={buttonClasses('primary')}
+                                >
+                                    <Truck className="size-4" /> Generar guía de remisión
+                                </Link>
+                            )}
+                        </>
                     }
                 />
 

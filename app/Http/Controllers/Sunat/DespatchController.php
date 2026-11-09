@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\Sunat;
 
 use App\Http\Controllers\Controller;
+use App\Models\Carrier;
 use App\Models\Despatch;
+use App\Models\Driver;
 use App\Models\Sale;
+use App\Models\Transfer;
+use App\Models\Vehicle;
 use App\Services\DespatchService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -39,17 +43,37 @@ class DespatchController extends Controller
         ]);
     }
 
-    public function create(Request $request): Response
+    public function create(Request $request): Response|RedirectResponse
     {
-        $company = $request->user()->company;
+        $user = $request->user();
+        $company = $user->company;
+        $branch = $user->branch;
+
+        $prefill = null;
+        if ($transferId = $request->integer('transfer')) {
+            $transfer = Transfer::findOrFail($transferId);
+            $existente = $transfer->despatches()->first();
+            if ($existente) {
+                return redirect()->route('guias.index', ['search' => $existente->numero])
+                    ->with('warning', "La transferencia #{$transfer->id} ya tiene la guía {$existente->numero}.");
+            }
+            $prefill = $this->despatches->prefillDesdeTransferencia($transfer);
+        }
 
         return Inertia::render('Sunat/Despatches/Create', [
             'motivos' => DespatchService::MOTIVOS,
             'modalidades' => DespatchService::MODALIDADES,
             'empresa' => [
-                'ubigeo' => $company->ubigeo,
-                'direccion' => $company->direccion,
+                'ubigeo' => $branch?->ubigeo ?: $company->ubigeo,
+                'direccion' => $branch?->direccion ?: $company->direccion,
             ],
+            'prefill' => $prefill,
+            'vehiculos' => Vehicle::where('is_active', true)->orderBy('placa')
+                ->get(['id', 'placa', 'marca', 'modelo', 'capacidad_kg']),
+            'conductores' => Driver::where('is_active', true)->orderBy('apellidos')
+                ->get(['id', 'tipo_doc', 'num_doc', 'nombres', 'apellidos', 'licencia', 'licencia_vence']),
+            'transportistas' => Carrier::where('is_active', true)->orderBy('razon_social')
+                ->get(['id', 'ruc', 'razon_social', 'nro_mtc']),
         ]);
     }
 
@@ -60,7 +84,7 @@ class DespatchController extends Controller
         $ventas = Sale::query()
             ->whereIn('tipo_comprobante', ['boleta', 'factura'])
             ->where('estado', '!=', 'anulada')
-            ->with(['customer:id,tipo_documento,numero_documento,direccion', 'items:id,sale_id,product_id,descripcion,cantidad'])
+            ->with(['customer:id,tipo_documento,numero_documento,direccion,ubigeo', 'items:id,sale_id,product_id,descripcion,cantidad'])
             ->when($q !== '', fn ($query) => $query->where(function ($query) use ($q) {
                 $query->where('cliente_nombre', 'like', "%{$q}%")
                     ->orWhereRaw("CONCAT(serie,'-',LPAD(correlativo,6,'0')) like ?", ["%{$q}%"]);
@@ -75,6 +99,7 @@ class DespatchController extends Controller
             'dest_tipo_doc' => $s->customer?->tipo_documento ?? $s->customer?->tipo_documento ?? '6',
             'dest_num_doc' => $s->cliente_documento,
             'dest_nombre' => $s->cliente_nombre,
+            'llegada_ubigeo' => $s->customer?->ubigeo,
             'llegada_direccion' => $s->customer?->direccion,
             'items' => $s->items->map(fn ($it) => [
                 'product_id' => $it->product_id,
@@ -88,6 +113,7 @@ class DespatchController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $companyId = $request->user()->company_id;
+        $publico = $request->input('mod_traslado') === '01';
 
         $data = $request->validate([
             'sale_id' => ['nullable', Rule::exists('sales', 'id')->where('company_id', $companyId)],
@@ -105,21 +131,29 @@ class DespatchController extends Controller
             'partida_direccion' => ['required', 'string', 'max:255'],
             'llegada_ubigeo' => ['nullable', 'string', 'size:6'],
             'llegada_direccion' => ['required', 'string', 'max:255'],
-            'transportista_doc' => ['nullable', 'required_if:mod_traslado,01', 'string', 'max:20'],
-            'transportista_nombre' => ['nullable', 'required_if:mod_traslado,01', 'string', 'max:255'],
+            'transfer_id' => ['nullable', Rule::exists('transfers', 'id')->where('company_id', $companyId)],
+            'carrier_id' => ['nullable', Rule::exists('carriers', 'id')->where('company_id', $companyId)->where('is_active', true)],
+            'vehicle_id' => ['nullable', Rule::exists('vehicles', 'id')->where('company_id', $companyId)->where('is_active', true)],
+            'driver_id' => ['nullable', Rule::exists('drivers', 'id')->where('company_id', $companyId)->where('is_active', true)],
+            // Los datos de texto son obligatorios solo si no se eligió del catálogo.
+            'transportista_doc' => ['nullable', Rule::requiredIf($publico && ! $request->filled('carrier_id')), 'string', 'max:20'],
+            'transportista_nombre' => ['nullable', Rule::requiredIf($publico && ! $request->filled('carrier_id')), 'string', 'max:255'],
             'transportista_mtc' => ['nullable', 'string', 'max:30'],
-            'vehiculo_placa' => ['nullable', 'required_if:mod_traslado,02', 'string', 'max:20'],
-            'chofer_num_doc' => ['nullable', 'required_if:mod_traslado,02', 'string', 'max:20'],
-            'chofer_licencia' => ['nullable', 'required_if:mod_traslado,02', 'string', 'max:20'],
-            'chofer_nombres' => ['nullable', 'required_if:mod_traslado,02', 'string', 'max:255'],
+            'vehiculo_placa' => ['nullable', Rule::requiredIf(! $publico && ! $request->filled('vehicle_id')), 'string', 'max:20'],
+            'chofer_tipo_doc' => ['nullable', Rule::in(array_keys(Driver::TIPOS_DOC))],
+            'chofer_num_doc' => ['nullable', Rule::requiredIf(! $publico && ! $request->filled('driver_id')), 'string', 'max:20'],
+            'chofer_licencia' => ['nullable', Rule::requiredIf(! $publico && ! $request->filled('driver_id')), 'string', 'max:20'],
+            'chofer_nombres' => ['nullable', Rule::requiredIf(! $publico && ! $request->filled('driver_id')), 'string', 'max:255'],
             'chofer_apellidos' => ['nullable', 'string', 'max:255'],
             'observacion' => ['nullable', 'string', 'max:255'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.descripcion' => ['required', 'string', 'max:255'],
             'items.*.cantidad' => ['required', 'numeric', 'gt:0'],
+            'items.*.product_id' => ['nullable', Rule::exists('products', 'id')->where('company_id', $companyId)],
+            'items.*.unidad' => ['nullable', 'string', 'max:5'],
         ]);
 
-        $data['chofer_tipo_doc'] = '1';
+        $data['chofer_tipo_doc'] ??= '1';
 
         try {
             $despatch = $this->despatches->registrar($data);

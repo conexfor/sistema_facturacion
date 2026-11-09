@@ -81,7 +81,10 @@ class TransferController extends Controller
 
     public function show(Transfer $transfer): Response
     {
-        $transfer->load(['items.product:id,codigo', 'origin:id,nombre', 'dest:id,nombre', 'user:id,name']);
+        $transfer->load([
+            'items.product:id,codigo', 'origin:id,nombre', 'dest:id,nombre', 'user:id,name',
+            'despatches:id,transfer_id,serie,correlativo,sunat_estado',
+        ]);
 
         return Inertia::render('Inventory/Transfers/Show', [
             'transfer' => $transfer,

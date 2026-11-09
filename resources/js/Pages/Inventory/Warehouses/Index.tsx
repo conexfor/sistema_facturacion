@@ -36,6 +36,7 @@ export default function Index({
         codigo: '',
         nombre: '',
         direccion: '',
+        ubigeo: '',
         branch_id: '' as string,
         is_main: false,
         is_active: true,
@@ -54,6 +55,7 @@ export default function Index({
             codigo: w.codigo,
             nombre: w.nombre,
             direccion: w.direccion ?? '',
+            ubigeo: w.ubigeo ?? '',
             branch_id: w.branch_id ? String(w.branch_id) : '',
             is_main: w.is_main,
             is_active: w.is_active,
@@ -204,12 +206,24 @@ export default function Index({
                                 error={form.errors.nombre}
                             />
                         </div>
-                        <TextField
-                            label="Dirección"
-                            value={form.data.direccion}
-                            onChange={(e) => form.setData('direccion', e.target.value)}
-                            error={form.errors.direccion}
-                        />
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                            <div className="sm:col-span-2">
+                                <TextField
+                                    label="Dirección"
+                                    value={form.data.direccion}
+                                    onChange={(e) => form.setData('direccion', e.target.value)}
+                                    error={form.errors.direccion}
+                                />
+                            </div>
+                            <TextField
+                                label="Ubigeo"
+                                value={form.data.ubigeo}
+                                onChange={(e) => form.setData('ubigeo', e.target.value)}
+                                error={form.errors.ubigeo}
+                                maxLength={6}
+                                hint="Para guías de remisión"
+                            />
+                        </div>
                         <SelectField
                             label="Sucursal"
                             placeholder="— Sin sucursal —"

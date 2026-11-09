@@ -17,6 +17,7 @@ class Warehouse extends Model
         'codigo',
         'nombre',
         'direccion',
+        'ubigeo',
         'is_main',
         'is_active',
     ];

@@ -9,6 +9,7 @@ import {
     Receipt,
     ShoppingBag,
     TrendingUp,
+    Truck,
 } from 'lucide-react';
 
 const iconMap: Record<string, LucideIcon> = {
@@ -17,6 +18,7 @@ const iconMap: Record<string, LucideIcon> = {
     'trending-up': TrendingUp,
     'shopping-bag': ShoppingBag,
     boxes: Boxes,
+    truck: Truck,
 };
 
 interface ReportCard {

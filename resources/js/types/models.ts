@@ -35,6 +35,7 @@ export interface Warehouse {
     codigo: string;
     nombre: string;
     direccion: string | null;
+    ubigeo: string | null;
     branch_id: number | null;
     branch?: { id: number; nombre: string } | null;
     is_main: boolean;
@@ -243,6 +244,7 @@ export interface Transfer {
     origin?: { id: number; nombre: string } | null;
     dest?: { id: number; nombre: string } | null;
     user?: { id: number; name: string } | null;
+    despatches?: { id: number; serie: string; correlativo: number; sunat_estado: string }[];
 }
 
 export interface Note {
@@ -280,10 +282,81 @@ export interface Despatch {
     des_traslado: string;
     mod_traslado: string;
     dest_nombre: string;
+    llegada_direccion?: string;
+    peso_total?: string;
+    vehiculo_placa?: string | null;
+    transportista_nombre?: string | null;
+    trip_id?: number | null;
     sunat_estado: string;
     sunat_xml_path: string | null;
     sunat_cdr_path: string | null;
     user?: { id: number; name: string } | null;
+}
+
+export interface Vehicle {
+    id: number;
+    placa: string;
+    marca: string | null;
+    modelo: string | null;
+    tipo: string | null;
+    cert_habilitacion: string | null;
+    capacidad_kg: string | null;
+    is_active: boolean;
+    despatches_count?: number;
+    trips_count?: number;
+}
+
+export interface Driver {
+    id: number;
+    tipo_doc: string;
+    num_doc: string;
+    nombres: string;
+    apellidos: string;
+    licencia: string;
+    licencia_vence: string | null;
+    telefono: string | null;
+    is_active: boolean;
+    despatches_count?: number;
+    trips_count?: number;
+}
+
+export interface Carrier {
+    id: number;
+    ruc: string;
+    razon_social: string;
+    nro_mtc: string | null;
+    telefono: string | null;
+    is_active: boolean;
+    despatches_count?: number;
+}
+
+export type TripEstado = 'programado' | 'en_ruta' | 'entregado' | 'incidencia' | 'cancelado';
+
+export interface Trip {
+    id: number;
+    numero: string;
+    fecha: string;
+    origen: string | null;
+    destino: string | null;
+    estado: TripEstado;
+    salida_at: string | null;
+    llegada_at: string | null;
+    km_inicial: string | null;
+    km_final: string | null;
+    km_recorridos: number | null;
+    costo_combustible: string;
+    costo_peajes: string;
+    costo_otros: string;
+    costo_total: number;
+    observacion: string | null;
+    incidencia: string | null;
+    vehicle_id: number | null;
+    driver_id: number | null;
+    vehicle?: Vehicle | null;
+    driver?: Driver | null;
+    user?: { id: number; name: string } | null;
+    despatches?: Despatch[];
+    despatches_count?: number;
 }
 
 export interface QuoteItem {
