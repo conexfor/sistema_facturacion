@@ -56,10 +56,33 @@ class SummaryController extends Controller
             'enviado' => "Resumen {$summary->identificador} enviado. Consulta el estado para obtener el CDR.",
             'simulado' => "Resumen {$summary->identificador} generado en modo simulación.",
             'rechazado' => "Resumen rechazado: {$summary->mensaje}",
+            'pendiente' => "Resumen {$summary->identificador} no se pudo enviar: {$summary->mensaje}",
             default => "Resumen {$summary->identificador} procesado.",
         };
 
-        return back()->with($summary->estado === 'rechazado' ? 'error' : 'success', $msg);
+        $tipo = match ($summary->estado) {
+            'rechazado' => 'error',
+            'pendiente' => 'warning',
+            default => 'success',
+        };
+
+        return back()->with($tipo, $msg);
+    }
+
+    /** Reintenta el envío de un resumen que SUNAT no llegó a recibir. */
+    public function reenviar(BoletaSummary $boletaSummary): RedirectResponse
+    {
+        try {
+            $summary = $this->summaries->enviar($boletaSummary);
+        } catch (Throwable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return match ($summary->estado) {
+            'enviado' => back()->with('success', "Resumen {$summary->identificador} enviado. Consulta el estado para obtener el CDR."),
+            'rechazado' => back()->with('error', "Resumen rechazado: {$summary->mensaje}"),
+            default => back()->with('warning', (string) $summary->mensaje),
+        };
     }
 
     public function consultar(BoletaSummary $boletaSummary): RedirectResponse
@@ -73,10 +96,18 @@ class SummaryController extends Controller
         $msg = match ($boletaSummary->estado) {
             'aceptado' => "Resumen {$boletaSummary->identificador} aceptado por SUNAT.",
             'observado' => "Resumen aceptado con observaciones: {$boletaSummary->mensaje}",
+            'rechazado' => "Resumen rechazado: {$boletaSummary->mensaje}. Sus boletas quedaron libres para un nuevo resumen.",
             default => $boletaSummary->mensaje ?? 'Consulta realizada.',
         };
 
-        return back()->with($boletaSummary->estado === 'observado' ? 'error' : 'success', $msg);
+        // "enviado" tras consultar = SUNAT aún no da respuesta.
+        $tipo = match ($boletaSummary->estado) {
+            'aceptado' => 'success',
+            'rechazado' => 'error',
+            default => 'warning',
+        };
+
+        return back()->with($tipo, $msg);
     }
 
     public function xml(BoletaSummary $boletaSummary): StreamedResponse

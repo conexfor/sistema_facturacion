@@ -240,7 +240,7 @@ export default function Index({
                                                             <RefreshCw className={`size-4 ${consultando === b.id ? 'animate-spin' : ''}`} />
                                                         </button>
                                                     )}
-                                                    {b.estado === 'rechazado' && (
+                                                    {(b.estado === 'rechazado' || b.estado === 'pendiente') && (
                                                         <button
                                                             onClick={() => reenviar(b.id)}
                                                             disabled={reenviando === b.id}

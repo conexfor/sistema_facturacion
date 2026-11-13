@@ -1,3 +1,4 @@
+import { fechaLocal } from '@/lib/format';
 import Modal from '@/Components/Modal';
 import Badge from '@/Components/ui/Badge';
 import Button from '@/Components/ui/Button';
@@ -15,7 +16,7 @@ import { IdCard, Loader2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 
 function hoy(): string {
-    return new Date().toISOString().slice(0, 10);
+    return fechaLocal();
 }
 
 function fecha(iso: string): string {
@@ -29,7 +30,7 @@ function estadoLicencia(vence: string | null): { label: string; tone: 'rose' | '
     if (v < hoy()) return { label: `Vencida ${fecha(v)}`, tone: 'rose' };
     const limite = new Date();
     limite.setDate(limite.getDate() + 30);
-    if (v <= limite.toISOString().slice(0, 10)) return { label: `Vence ${fecha(v)}`, tone: 'amber' };
+    if (v <= fechaLocal(limite)) return { label: `Vence ${fecha(v)}`, tone: 'amber' };
     return { label: `Vigente ${fecha(v)}`, tone: 'emerald' };
 }
 

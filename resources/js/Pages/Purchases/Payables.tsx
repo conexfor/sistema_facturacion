@@ -8,7 +8,7 @@ import Pagination from '@/Components/ui/Pagination';
 import PageHeader from '@/Components/ui/PageHeader';
 import SearchInput from '@/Components/ui/SearchInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, fechaLocal } from '@/lib/format';
 import { Paginated, Purchase } from '@/types/models';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { CheckCircle2, CreditCard, Eye } from 'lucide-react';
@@ -34,7 +34,7 @@ export default function Payables({
     const form = useForm({
         monto: '',
         metodo_pago: 'efectivo',
-        fecha: new Date().toISOString().slice(0, 10),
+        fecha: fechaLocal(),
         observacion: '',
     });
 
@@ -43,7 +43,7 @@ export default function Payables({
         form.setData({
             monto: saldoOf(p).toFixed(2),
             metodo_pago: 'efectivo',
-            fecha: new Date().toISOString().slice(0, 10),
+            fecha: fechaLocal(),
             observacion: '',
         });
         form.clearErrors();

@@ -55,6 +55,10 @@ return [
             'unix_socket' => env('DB_SOCKET', ''),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
             'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            // Misma hora que la app (Perú, UTC-5, sin horario de verano), para
+            // que los valores por defecto CURRENT_TIMESTAMP coincidan con now()
+            // aunque el servidor de producción esté en UTC.
+            'timezone' => env('DB_TIMEZONE', '-05:00'),
             'prefix' => '',
             'prefix_indexes' => true,
             'strict' => true,

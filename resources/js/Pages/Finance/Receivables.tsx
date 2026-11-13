@@ -7,7 +7,7 @@ import Pagination from '@/Components/ui/Pagination';
 import PageHeader from '@/Components/ui/PageHeader';
 import SearchInput from '@/Components/ui/SearchInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, fechaLocal } from '@/lib/format';
 import { Paginated, Sale } from '@/types/models';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { CheckCircle2, Eye, HandCoins } from 'lucide-react';
@@ -36,7 +36,7 @@ export default function Receivables({
     const form = useForm({
         monto: '',
         metodo_pago: 'efectivo',
-        fecha: new Date().toISOString().slice(0, 10),
+        fecha: fechaLocal(),
         observacion: '',
     });
 
@@ -45,7 +45,7 @@ export default function Receivables({
         form.setData({
             monto: saldoOf(s).toFixed(2),
             metodo_pago: 'efectivo',
-            fecha: new Date().toISOString().slice(0, 10),
+            fecha: fechaLocal(),
             observacion: '',
         });
         form.clearErrors();

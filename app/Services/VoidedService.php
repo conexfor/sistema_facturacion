@@ -6,6 +6,7 @@ use App\Models\Sale;
 use App\Models\VoidedDocument;
 use App\Models\Warehouse;
 use App\Services\Sunat\SeeFactory;
+use App\Services\Sunat\SunatRespuesta;
 use App\Services\Sunat\VoidedBuilder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -42,7 +43,7 @@ class VoidedService
             throw new RuntimeException('La comunicación de baja solo procede dentro de los 7 días de emitido el comprobante.');
         }
         $existe = VoidedDocument::where('sale_id', $sale->id)
-            ->whereIn('estado', ['pendiente', 'enviado', 'aceptado', 'simulado'])
+            ->whereIn('estado', ['pendiente', 'enviado', 'aceptado', 'observado', 'simulado'])
             ->exists();
         if ($existe) {
             throw new RuntimeException('Ya existe una comunicación de baja para este comprobante.');
@@ -100,10 +101,18 @@ class VoidedService
 
         if (! $result || ! $result->isSuccess()) {
             $error = $result?->getError();
+
+            // SUNAT no respondió: queda pendiente para reintentar, no rechazada.
+            if (SunatRespuesta::esFallaDeConexion($error)) {
+                $voided->update(['xml_path' => $xmlPath, 'mensaje' => SunatRespuesta::MENSAJE_SIN_RESPUESTA]);
+
+                return $voided->refresh();
+            }
+
             $voided->update([
                 'estado' => 'rechazado',
                 'xml_path' => $xmlPath,
-                'mensaje' => $error ? trim($error->getCode() . ' - ' . $error->getMessage()) : 'SUNAT rechazó la baja.',
+                'mensaje' => SunatRespuesta::mensajeError($error, 'SUNAT rechazó la baja.'),
                 'sent_at' => now(),
             ]);
 
@@ -138,9 +147,8 @@ class VoidedService
         $cdr = $result?->getCdrResponse();
 
         if (! $cdr) {
-            $error = $result?->getError();
             $voided->update([
-                'mensaje' => $error ? trim($error->getCode() . ' - ' . $error->getMessage()) : 'En proceso en SUNAT.',
+                'mensaje' => SunatRespuesta::mensajeError($result?->getError(), 'En proceso en SUNAT.'),
             ]);
 
             return $voided->refresh();
@@ -152,15 +160,18 @@ class VoidedService
             Storage::put($cdrPath, $result->getCdrZip());
         }
 
-        $aceptado = $cdr->getCode() === '0';
+        // 0 = aceptada; 4000+ = aceptada con observaciones; resto = rechazada.
+        $estado = SunatRespuesta::estadoCdr($cdr->getCode());
+        $descripcion = $cdr->getDescription() ?? 'Procesado por SUNAT.';
         $voided->update([
-            'estado' => $aceptado ? 'aceptado' : 'observado',
+            'estado' => $estado,
             'cdr_path' => $cdrPath,
-            'mensaje' => $cdr->getDescription() ?? 'Procesado por SUNAT.',
+            'mensaje' => $estado === 'rechazado' ? trim($cdr->getCode() . ' - ' . $descripcion) : $descripcion,
         ]);
 
         $advertencia = null;
-        if ($aceptado) {
+        // Con observaciones la baja también es válida: se anula la venta.
+        if ($estado !== 'rechazado') {
             $advertencia = $this->aplicarAnulacion($voided->sale, $voided->identificador);
         }
 

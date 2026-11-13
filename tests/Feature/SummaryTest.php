@@ -60,9 +60,42 @@ class SummaryTest extends TestCase
         $this->assertNotNull($summary->ticket);
         $this->assertEquals('simulado', $b1->refresh()->sunat_estado);
 
+        // Cada línea lleva la tasa del IGV (sin ella SUNAT rechaza con 2992).
+        $see = new \Greenter\See();
+        $see->setCertificate(\App\Services\Sunat\CertificateGenerator::ephemeralPem());
+        $xml = $see->getXmlSigned(app(\App\Services\Sunat\SummaryBuilder::class)->build($summary, $summary->company));
+        $this->assertSame(2, substr_count($xml, '<cbc:Percent>18.00</cbc:Percent>'));
+
         // No se puede reenviar un resumen ya procesado
         $this->expectException(\RuntimeException::class);
         $service->enviar($summary);
+    }
+
+    public function test_excluye_boletas_ya_aceptadas_individualmente(): void
+    {
+        $this->seed(TestSeeder::class);
+        $user = User::where('email', 'admin@erp.test')->firstOrFail();
+        $this->actingAs($user);
+
+        $product = Product::where('codigo', 'P0001')->firstOrFail();
+        $warehouse = Warehouse::where('codigo', 'ALM01')->firstOrFail();
+        $venta = fn () => app(SaleService::class)->registrar([
+            'tipo_comprobante' => 'boleta',
+            'warehouse_id' => $warehouse->id,
+            'metodo_pago' => 'efectivo',
+            'monto_recibido' => 100,
+            'items' => [['product_id' => $product->id, 'cantidad' => 1, 'precio_unitario' => 30]],
+        ]);
+
+        $emitida = $venta();
+        $pendiente = $venta();
+        // Enviada una por una desde Comprobantes y aceptada por SUNAT.
+        $emitida->update(['sunat_estado' => 'aceptado']);
+
+        $ids = app(SummaryService::class)->boletasPendientes(Carbon::today())->pluck('id');
+
+        $this->assertNotContains($emitida->id, $ids);
+        $this->assertContains($pendiente->id, $ids);
     }
 
     public function test_no_genera_resumen_sin_boletas(): void

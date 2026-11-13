@@ -1,3 +1,4 @@
+import { fechaLocal } from '@/lib/format';
 import Card from '@/Components/Card';
 import Button from '@/Components/ui/Button';
 import { SelectField, TextField } from '@/Components/ui/Form';
@@ -94,7 +95,7 @@ interface DespatchForm {
 }
 
 function today() {
-    return new Date().toISOString().slice(0, 10);
+    return fechaLocal();
 }
 
 export default function Create({

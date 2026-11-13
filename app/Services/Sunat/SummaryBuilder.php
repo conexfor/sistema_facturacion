@@ -19,6 +19,8 @@ class SummaryBuilder
     {
         $summary->loadMissing('sales.items', 'sales.customer');
 
+        $igvPct = (float) ($companyModel->igv_porcentaje ?? 18);
+
         $details = [];
         foreach ($summary->sales as $sale) {
             $gravadas = 0.0;
@@ -42,7 +44,10 @@ class SummaryBuilder
                 ->setMtoOperGravadas(round($gravadas, 2))
                 ->setMtoOperExoneradas(round($exoneradas, 2))
                 ->setMtoOperInafectas(round($inafectas, 2))
-                ->setMtoIGV(round((float) $sale->igv, 2));
+                ->setMtoIGV(round((float) $sale->igv, 2))
+                // Tasa del IGV (cbc:Percent): SUNAT la exige en cada línea del
+                // resumen; sin ella rechaza con el error 2992.
+                ->setPorcentajeIgv($igvPct);
 
             // Receptor (obligatorio en el RC). Si la boleta fue a "varios" sin
             // documento, se usa tipo 0 (sin RUC) y número 00000000 — igual que el

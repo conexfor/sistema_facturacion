@@ -7,7 +7,7 @@ import Pagination from '@/Components/ui/Pagination';
 import PageHeader from '@/Components/ui/PageHeader';
 import SearchInput from '@/Components/ui/SearchInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, fechaLocal } from '@/lib/format';
 import { Paginated, Trip, TripEstado } from '@/types/models';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { ChevronRight, Plus, Route } from 'lucide-react';
@@ -45,7 +45,7 @@ export default function Index({
     const [showModal, setShowModal] = useState(false);
 
     const form = useForm({
-        fecha: new Date().toISOString().slice(0, 10),
+        fecha: fechaLocal(),
         vehicle_id: '',
         driver_id: '',
         origen: '',

@@ -59,7 +59,12 @@ class ComprobanteController extends Controller
             default => "Comprobante {$sale->numero}: {$sale->sunat_mensaje}",
         };
 
-        $tipo = in_array($sale->sunat_estado, ['rechazado'], true) ? 'error' : 'success';
+        $tipo = match ($sale->sunat_estado) {
+            'rechazado' => 'error',
+            // SUNAT no respondió: se puede volver a emitir.
+            'no_enviado', 'observado' => 'warning',
+            default => 'success',
+        };
 
         return back()->with($tipo, $msg);
     }

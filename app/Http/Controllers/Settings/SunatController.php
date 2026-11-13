@@ -3,15 +3,31 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Models\Company;
+use App\Services\DocumentLookupService;
+use App\Services\Sunat\CertificateInspector;
+use App\Services\Sunat\CertificateLoader;
+use App\Services\Sunat\PfxConverter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
 
 class SunatController extends Controller
 {
+    /** Datos fiscales que se toman del certificado / consulta RUC. */
+    private const CAMPOS_FISCALES = ['razon_social', 'nombre_comercial', 'direccion', 'ubigeo', 'departamento', 'provincia', 'distrito'];
+
+    /** Datos de contacto que pertenecían a la empresa anterior al cambiar de RUC. */
+    private const CAMPOS_CONTACTO = ['telefono', 'email'];
+
+    public function __construct(private readonly DocumentLookupService $lookup)
+    {
+    }
+
     public function edit(Request $request): Response
     {
         $company = $request->user()->company;
@@ -35,6 +51,7 @@ class SunatController extends Controller
                 'tiene_gre_secret' => ! empty($company->gre_client_secret),
             ],
             'configurado' => $company->sunatConfigurado(),
+            'certificado' => $this->certificado($company),
         ]);
     }
 
@@ -80,28 +97,157 @@ class SunatController extends Controller
             $company->gre_client_secret = $data['gre_client_secret'];
         }
 
-        if ($request->hasFile('certificado')) {
-            $contents = file_get_contents($request->file('certificado')->getRealPath());
-            $pwd = $data['certificado_password'] ?? '';
-            $pem = $contents;
+        if (! $request->hasFile('certificado')) {
+            $company->save();
 
-            // Si es un .pfx/.p12, convertir a PEM (clave privada + certificado)
-            $certs = [];
-            if (@openssl_pkcs12_read($contents, $certs, $pwd)) {
-                $pem = $certs['pkey'] . $certs['cert'];
-            } elseif ($pwd !== '' || str_contains(strtolower($request->file('certificado')->getClientOriginalName()), '.pfx')) {
-                return back()->withErrors([
-                    'certificado' => 'No se pudo leer el certificado .pfx (clave incorrecta o formato no soportado).',
-                ]);
+            return back()->with('success', 'Configuración SUNAT actualizada.');
+        }
+
+        $contents = file_get_contents($request->file('certificado')->getRealPath());
+        $pem = $contents;
+
+        // Si no es PEM en texto, es un .pfx/.p12 binario: convertir a PEM.
+        if (! str_contains($contents, '-----BEGIN')) {
+            try {
+                $pem = PfxConverter::toPem($contents, $data['certificado_password'] ?? '');
+            } catch (RuntimeException $e) {
+                return back()->withErrors(['certificado' => $e->getMessage()]);
             }
+        }
 
-            $path = "sunat/{$company->ruc}/cert.pem";
-            Storage::put($path, $pem);
-            $company->certificate_path = $path;
+        $info = CertificateInspector::inspect($pem);
+        if (! $info || ! @openssl_pkey_get_private($pem)) {
+            return back()->withErrors(['certificado' => 'El archivo debe contener el certificado y su clave privada.']);
+        }
+
+        if ($info['ruc'] && $this->rucEnOtraEmpresa($company, $info['ruc'])) {
+            return back()->withErrors(['certificado' => "El RUC {$info['ruc']} del certificado ya está registrado en otra empresa del sistema."]);
+        }
+
+        $path = "sunat/{$company->ruc}/cert.pem";
+        Storage::put($path, $pem);
+        $company->certificate_path = $path;
+
+        if (! $info['ruc']) {
+            $company->save();
+
+            return back()->with('warning', 'Certificado cargado, pero no se encontró el RUC del titular. Verifica los datos de la empresa manualmente.');
+        }
+
+        [$tipo, $mensaje] = $this->aplicarDatosCertificado($company, $info);
+
+        return back()->with($tipo, $mensaje);
+    }
+
+    /** Aplica los datos del certificado ya cargado (botón del panel). */
+    public function aplicarCertificado(Request $request): RedirectResponse
+    {
+        $company = $request->user()->company;
+        $info = $this->certificado($company);
+
+        if (! $info || ! $info['ruc']) {
+            return back()->with('error', 'No se encontró un RUC válido en el certificado cargado.');
+        }
+
+        if ($this->rucEnOtraEmpresa($company, $info['ruc'])) {
+            return back()->with('error', "El RUC {$info['ruc']} ya está registrado en otra empresa del sistema.");
+        }
+
+        [$tipo, $mensaje] = $this->aplicarDatosCertificado($company, $info);
+
+        return redirect()->route('settings.sunat.edit')->with($tipo, $mensaje);
+    }
+
+    /**
+     * Sincroniza los datos de la empresa con el titular del certificado,
+     * consultando su RUC en SUNAT cuando la consulta está configurada.
+     *
+     * Si el RUC cambia, los datos de la empresa anterior se descartan: lo que
+     * no venga del certificado o de SUNAT queda vacío para completarlo a mano,
+     * nunca con datos de la empresa anterior (p. ej. los de demostración).
+     *
+     * @return array{0: string, 1: string} [tipo de flash, mensaje]
+     */
+    private function aplicarDatosCertificado(Company $company, array $info): array
+    {
+        $ruc = $info['ruc'];
+        $cambiaRuc = $ruc !== $company->ruc;
+
+        [$datos, $error] = $this->consultarRuc($ruc);
+        $datos['razon_social'] = ($datos['razon_social'] ?? null) ?: $info['titular'];
+
+        if ($cambiaRuc) {
+            foreach (array_merge(self::CAMPOS_FISCALES, self::CAMPOS_CONTACTO) as $campo) {
+                $company->{$campo} = null;
+            }
+            $company->ruc = $ruc;
+        }
+
+        foreach (self::CAMPOS_FISCALES as $campo) {
+            if (! empty($datos[$campo])) {
+                $company->{$campo} = $datos[$campo];
+            }
+        }
+
+        // razon_social es obligatoria en la tabla.
+        $company->razon_social ??= $ruc;
+
+        // El certificado vive en la carpeta del RUC de la empresa.
+        $nuevoPath = "sunat/{$ruc}/cert.pem";
+        if ($company->certificate_path && $company->certificate_path !== $nuevoPath
+            && Storage::exists($company->certificate_path)) {
+            Storage::move($company->certificate_path, $nuevoPath);
+            $company->certificate_path = $nuevoPath;
         }
 
         $company->save();
 
-        return back()->with('success', 'Configuración SUNAT actualizada.');
+        if ($error === null) {
+            return ['success', "Certificado cargado. Datos de {$company->razon_social} (RUC {$ruc}) actualizados desde SUNAT."];
+        }
+
+        $faltan = collect(['direccion' => 'dirección', 'ubigeo' => 'ubigeo'])
+            ->filter(fn ($_, $campo) => empty($company->{$campo}))
+            ->values()
+            ->implode(' y ');
+
+        return ['warning', "Certificado cargado. RUC {$ruc} y razón social tomados del certificado. "
+            . "No se pudo consultar SUNAT ({$error})"
+            . ($faltan !== '' ? "; completa {$faltan} manualmente." : '.')];
+    }
+
+    /** @return array{0: array, 1: ?string} [datos, error] */
+    private function consultarRuc(string $ruc): array
+    {
+        if (! $this->lookup->isEnabled()) {
+            return [[], 'consulta de RUC no configurada: PERU_API_TOKEN'];
+        }
+
+        try {
+            return [$this->lookup->lookup('6', $ruc), null];
+        } catch (RuntimeException $e) {
+            return [[], rtrim($e->getMessage(), '.')];
+        }
+    }
+
+    private function rucEnOtraEmpresa(Company $company, string $ruc): bool
+    {
+        return Company::where('ruc', $ruc)->where('id', '!=', $company->id)->exists();
+    }
+
+    /** Datos del certificado cargado, o null si no hay o no se puede leer. */
+    private function certificado(Company $company): ?array
+    {
+        if (! $company->certificate_path) {
+            return null;
+        }
+
+        try {
+            $info = CertificateInspector::inspect(CertificateLoader::pem($company));
+        } catch (RuntimeException) {
+            return null;
+        }
+
+        return $info ? $info + ['coincide' => $info['ruc'] === $company->ruc] : null;
     }
 }

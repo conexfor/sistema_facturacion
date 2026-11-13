@@ -1,8 +1,10 @@
+import { Eye, EyeOff } from 'lucide-react';
 import {
     InputHTMLAttributes,
     ReactNode,
     SelectHTMLAttributes,
     TextareaHTMLAttributes,
+    useState,
 } from 'react';
 
 const inputBase =
@@ -51,13 +53,54 @@ export function TextField({
     required?: boolean;
     hint?: string;
 }) {
+    const [visible, setVisible] = useState(false);
+    const isPassword = props.type === 'password';
+
+    if (!isPassword) {
+        return (
+            <Wrapper label={label} error={error} required={required} hint={hint}>
+                <input
+                    className={`${inputBase} ${error ? 'border-rose-400' : ''} ${className}`}
+                    {...props}
+                />
+            </Wrapper>
+        );
+    }
+
     return (
         <Wrapper label={label} error={error} required={required} hint={hint}>
-            <input
-                className={`${inputBase} ${error ? 'border-rose-400' : ''} ${className}`}
-                {...props}
-            />
+            <div className="relative">
+                <input
+                    className={`${inputBase} pe-10 ${error ? 'border-rose-400' : ''} ${className}`}
+                    {...props}
+                    type={visible ? 'text' : 'password'}
+                />
+                <PasswordToggle visible={visible} onToggle={() => setVisible((v) => !v)} />
+            </div>
         </Wrapper>
+    );
+}
+
+export function PasswordToggle({
+    visible,
+    onToggle,
+}: {
+    visible: boolean;
+    onToggle: () => void;
+}) {
+    const label = visible ? 'Ocultar contraseña' : 'Mostrar contraseña';
+
+    return (
+        <button
+            type="button"
+            onClick={onToggle}
+            className="absolute inset-y-0 end-0 flex items-center pe-3 text-slate-400 transition hover:text-slate-600 focus:outline-none dark:hover:text-slate-200"
+            aria-label={label}
+            title={label}
+            tabIndex={-1}
+        >
+            {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+        </button>
     );
 }
 

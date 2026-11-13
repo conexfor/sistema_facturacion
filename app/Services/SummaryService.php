@@ -6,6 +6,7 @@ use App\Models\BoletaSummary;
 use App\Models\Sale;
 use App\Services\Sunat\SeeFactory;
 use App\Services\Sunat\SummaryBuilder;
+use App\Services\Sunat\SunatRespuesta;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,13 +24,19 @@ class SummaryService
     {
     }
 
-    /** Boletas pendientes de incluir en un resumen, para una fecha dada. */
+    /**
+     * Boletas pendientes de incluir en un resumen, para una fecha dada.
+     *
+     * Se excluyen las que ya se enviaron una por una desde Comprobantes y SUNAT
+     * aceptó: informarlas de nuevo en un resumen las duplicaría.
+     */
     public function boletasPendientes(Carbon $fecha)
     {
         return Sale::where('tipo_comprobante', 'boleta')
             ->whereDate('fecha', $fecha->toDateString())
             ->whereNull('boleta_summary_id')
-            ->where('estado', '!=', 'anulada');
+            ->where('estado', '!=', 'anulada')
+            ->whereNotIn('sunat_estado', ['aceptado', 'observado']);
     }
 
     /** Agrupa las boletas de una fecha en un nuevo resumen. */
@@ -94,14 +101,25 @@ class SummaryService
 
         if (! $result || ! $result->isSuccess()) {
             $error = $result?->getError();
+
+            // SUNAT no respondió: el resumen queda pendiente para reintentar,
+            // no se marca como rechazado.
+            if (SunatRespuesta::esFallaDeConexion($error)) {
+                $summary->update(['xml_path' => $xmlPath, 'mensaje' => SunatRespuesta::MENSAJE_SIN_RESPUESTA]);
+
+                return $summary->refresh();
+            }
+
             $summary->update([
                 'estado' => 'rechazado',
                 'xml_path' => $xmlPath,
-                'mensaje' => $error
-                    ? trim($error->getCode() . ' - ' . $error->getMessage())
-                    : 'SUNAT no aceptó el resumen.',
+                'mensaje' => SunatRespuesta::mensajeError($error, 'SUNAT no aceptó el resumen.'),
                 'sent_at' => now(),
             ]);
+
+            // SUNAT no registró el resumen: las boletas vuelven a quedar
+            // pendientes para incluirlas en un nuevo resumen ya corregido.
+            $summary->sales()->update(['boleta_summary_id' => null]);
 
             return $summary->refresh();
         }
@@ -136,11 +154,12 @@ class SummaryService
         $cdr = $result?->getCdrResponse();
 
         if (! $cdr) {
-            $error = $result?->getError();
+            // Sin CDR: SUNAT aún lo procesa o no respondió. Sigue "enviado".
             $summary->update([
-                'mensaje' => $error
-                    ? trim($error->getCode() . ' - ' . $error->getMessage())
-                    : 'El resumen aún está en proceso en SUNAT. Intenta más tarde.',
+                'mensaje' => SunatRespuesta::mensajeError(
+                    $result?->getError(),
+                    'El resumen aún está en proceso en SUNAT. Intenta más tarde.',
+                ),
             ]);
 
             return $summary->refresh();
@@ -152,19 +171,25 @@ class SummaryService
             Storage::put($cdrPath, $result->getCdrZip());
         }
 
-        $aceptado = $cdr->getCode() === '0';
+        $estado = SunatRespuesta::estadoCdr($cdr->getCode());
+        $descripcion = $cdr->getDescription() ?? 'Procesado por SUNAT.';
 
         $summary->update([
-            'estado' => $aceptado ? 'aceptado' : 'observado',
+            'estado' => $estado,
             'cdr_path' => $cdrPath,
-            'mensaje' => $cdr->getDescription() ?? 'Procesado por SUNAT.',
+            'mensaje' => $estado === 'rechazado' ? trim($cdr->getCode() . ' - ' . $descripcion) : $descripcion,
         ]);
 
-        if ($aceptado) {
+        if ($estado === 'rechazado') {
+            // Las boletas vuelven a quedar pendientes para un nuevo resumen.
+            $summary->sales()->update(['boleta_summary_id' => null]);
+        } else {
+            // Aceptado (con o sin observaciones): las boletas quedan informadas.
             $summary->sales()->update([
-                'sunat_estado' => 'aceptado',
+                'sunat_estado' => $estado,
                 'sunat_enviado_at' => now(),
-                'sunat_mensaje' => 'Aceptada en resumen ' . $summary->identificador,
+                'sunat_mensaje' => ($estado === 'aceptado' ? 'Aceptada' : 'Aceptada con observaciones')
+                    . ' en resumen ' . $summary->identificador,
             ]);
         }
 

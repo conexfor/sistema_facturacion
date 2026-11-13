@@ -31,11 +31,6 @@ class CertificateLoader
         }
 
         // Es un .pfx/.p12 binario: se convierte a PEM con la contraseña del certificado.
-        $certs = [];
-        if (! openssl_pkcs12_read($content, $certs, (string) $company->certificate_password)) {
-            throw new RuntimeException('No se pudo abrir el certificado .pfx (verifica la contraseña del certificado).');
-        }
-
-        return ($certs['pkey'] ?? '') . ($certs['cert'] ?? '');
+        return PfxConverter::toPem($content, (string) $company->certificate_password);
     }
 }

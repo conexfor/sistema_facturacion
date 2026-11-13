@@ -5,7 +5,7 @@ import Button, { buttonClasses } from '@/Components/ui/Button';
 import { SelectField, TextField } from '@/Components/ui/Form';
 import PageHeader from '@/Components/ui/PageHeader';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { formatCurrency, formatNumber } from '@/lib/format';
+import { formatCurrency, formatNumber, fechaLocal } from '@/lib/format';
 import { Purchase } from '@/types/models';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, CreditCard, Printer } from 'lucide-react';
@@ -24,7 +24,7 @@ export default function Show({ purchase, saldo }: { purchase: Purchase; saldo: n
     const form = useForm({
         monto: saldo.toFixed(2),
         metodo_pago: 'efectivo',
-        fecha: new Date().toISOString().slice(0, 10),
+        fecha: fechaLocal(),
         observacion: '',
     });
 

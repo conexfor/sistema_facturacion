@@ -3,7 +3,7 @@ import Button from '@/Components/ui/Button';
 import { SelectField, TextField } from '@/Components/ui/Form';
 import PageHeader from '@/Components/ui/PageHeader';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, fechaLocal } from '@/lib/format';
 import { Head, router } from '@inertiajs/react';
 import axios from 'axios';
 import { PackagePlus, Search, Trash2, Truck, X } from 'lucide-react';
@@ -38,7 +38,7 @@ interface SupplierOpt {
 }
 
 function today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return fechaLocal();
 }
 function round2(n: number): number {
     return Math.round((n + Number.EPSILON) * 100) / 100;

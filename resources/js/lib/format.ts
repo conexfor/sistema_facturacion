@@ -1,3 +1,14 @@
+/**
+ * Fecha local (YYYY-MM-DD) de un Date, por defecto hoy. No usar
+ * toISOString().slice(0, 10): da la fecha UTC, que en Perú después de las
+ * 7 p. m. ya es el día siguiente.
+ */
+export function fechaLocal(d: Date = new Date()): string {
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
 const currencySymbols: Record<string, string> = {
     PEN: 'S/',
     USD: '$',

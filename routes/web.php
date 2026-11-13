@@ -164,6 +164,7 @@ Route::middleware(['auth', 'verified', 'permission:ventas.gestionar'])->prefix('
     Route::get('/', [SummaryController::class, 'index'])->name('index');
     Route::post('generar', [SummaryController::class, 'generar'])->name('generar');
     Route::post('{boletaSummary}/consultar', [SummaryController::class, 'consultar'])->name('consultar');
+    Route::post('{boletaSummary}/reenviar', [SummaryController::class, 'reenviar'])->name('reenviar');
     Route::get('{boletaSummary}/xml', [SummaryController::class, 'xml'])->name('xml');
     Route::get('{boletaSummary}/cdr', [SummaryController::class, 'cdr'])->name('cdr');
 });
@@ -235,6 +236,7 @@ Route::middleware(['auth', 'verified', 'permission:configuracion.gestionar'])->p
 
     Route::get('sunat', [SunatController::class, 'edit'])->name('sunat.edit');
     Route::post('sunat', [SunatController::class, 'update'])->name('sunat.update');
+    Route::post('sunat/aplicar-certificado', [SunatController::class, 'aplicarCertificado'])->name('sunat.aplicar-certificado');
 
     Route::resource('sucursales', BranchController::class)
         ->parameters(['sucursales' => 'branch'])

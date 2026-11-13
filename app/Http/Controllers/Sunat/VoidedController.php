@@ -48,7 +48,7 @@ class VoidedController extends Controller
             ->where('estado', '!=', 'anulada')
             ->whereDate('fecha', '>=', Carbon::today()->subDays(7)->toDateString())
             ->whereNotIn('id', VoidedDocument::query()
-                ->whereIn('estado', ['pendiente', 'enviado', 'aceptado', 'simulado'])
+                ->whereIn('estado', ['pendiente', 'enviado', 'aceptado', 'observado', 'simulado'])
                 ->whereNotNull('sale_id')
                 ->pluck('sale_id'))
             ->when($q !== '', fn ($query) => $query->where(function ($query) use ($q) {
@@ -109,8 +109,8 @@ class VoidedController extends Controller
         if ($voidedDocument->estado === 'rechazado') {
             return back()->with('error', $msg);
         }
-        if ($voidedDocument->advertenciaCaja) {
-            return back()->with('warning', $msg . ' ' . $voidedDocument->advertenciaCaja);
+        if ($voidedDocument->estado === 'pendiente' || $voidedDocument->advertenciaCaja) {
+            return back()->with('warning', trim($msg . ' ' . ($voidedDocument->advertenciaCaja ?? '')));
         }
 
         return back()->with('success', $msg);
@@ -126,12 +126,17 @@ class VoidedController extends Controller
 
         $msg = match ($voidedDocument->estado) {
             'aceptado' => "Baja {$voidedDocument->identificador} aceptada. Comprobante anulado.",
-            'observado' => "Baja observada: {$voidedDocument->mensaje}",
+            'observado' => "Baja aceptada con observaciones (comprobante anulado): {$voidedDocument->mensaje}",
+            'rechazado' => "Baja rechazada: {$voidedDocument->mensaje}",
             default => $voidedDocument->mensaje ?? 'Consulta realizada.',
         };
 
-        if ($voidedDocument->estado === 'observado') {
+        if ($voidedDocument->estado === 'rechazado') {
             return back()->with('error', $msg);
+        }
+        // "enviado" tras consultar = SUNAT aún no responde.
+        if (in_array($voidedDocument->estado, ['observado', 'enviado'], true)) {
+            return back()->with('warning', trim($msg . ' ' . ($voidedDocument->advertenciaCaja ?? '')));
         }
         if ($voidedDocument->advertenciaCaja) {
             return back()->with('warning', $msg . ' ' . $voidedDocument->advertenciaCaja);

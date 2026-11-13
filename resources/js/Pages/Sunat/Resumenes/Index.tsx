@@ -1,3 +1,4 @@
+import { fechaLocal } from '@/lib/format';
 import Card from '@/Components/Card';
 import Badge from '@/Components/ui/Badge';
 import Button from '@/Components/ui/Button';
@@ -13,6 +14,7 @@ import {
     FileCode2,
     Info,
     RefreshCw,
+    Send,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -83,6 +85,15 @@ export default function Index({
         );
     };
 
+    const reenviar = (id: number) => {
+        setConsultando(id);
+        router.post(
+            route('resumenes.reenviar', id),
+            {},
+            { preserveScroll: true, onFinish: () => setConsultando(null) },
+        );
+    };
+
     return (
         <AuthenticatedLayout>
             <Head title="Resumen diario de boletas" />
@@ -119,7 +130,7 @@ export default function Index({
                             <input
                                 type="date"
                                 value={fechaSel}
-                                max={new Date().toISOString().slice(0, 10)}
+                                max={fechaLocal()}
                                 onChange={(e) => cambiarFecha(e.target.value)}
                                 className="rounded-lg border-slate-300 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                             />
@@ -165,7 +176,9 @@ export default function Index({
                                                 {r.identificador}
                                             </td>
                                             <td className="whitespace-nowrap py-3 pr-3 text-xs text-slate-500">
-                                                {new Date(r.fecha_referencia).toLocaleDateString('es-PE')}
+                                                {/* Fecha sin hora: new Date() la tomaría como medianoche
+                                                    UTC y en Perú mostraría el día anterior. */}
+                                                {r.fecha_referencia.slice(0, 10).split('-').reverse().join('/')}
                                             </td>
                                             <td className="py-3 pr-3 text-center">{r.total_boletas}</td>
                                             <td className="py-3 pr-3 text-center">
@@ -176,6 +189,18 @@ export default function Index({
                                             </td>
                                             <td className="py-3">
                                                 <div className="flex items-center justify-end gap-1">
+                                                    {r.estado === 'pendiente' && (
+                                                        <button
+                                                            onClick={() => reenviar(r.id)}
+                                                            disabled={consultando === r.id}
+                                                            title="Reenviar a SUNAT"
+                                                            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-brand-600 dark:hover:bg-slate-800"
+                                                        >
+                                                            <Send
+                                                                className={`size-4 ${consultando === r.id ? 'animate-pulse' : ''}`}
+                                                            />
+                                                        </button>
+                                                    )}
                                                     {(r.estado === 'enviado' || r.estado === 'observado') && (
                                                         <button
                                                             onClick={() => consultar(r.id)}

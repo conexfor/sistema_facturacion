@@ -44,4 +44,15 @@ return [
         'cache_ttl' => env('PERU_API_CACHE_TTL', 86400),
     ],
 
+    // Segundos máximos de espera por cada llamada a los servicios de SUNAT.
+    'sunat' => [
+        'timeout' => env('SUNAT_TIMEOUT', 25),
+    ],
+
+    // Binario openssl para convertir certificados .pfx con cifrado antiguo
+    // (RC2/3DES) que el OpenSSL 3 de PHP no abre. Ver PfxConverter.
+    'openssl' => [
+        'bin' => env('OPENSSL_BIN', 'openssl'),
+    ],
+
 ];

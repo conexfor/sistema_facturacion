@@ -14,6 +14,8 @@ class SeeFactory
 {
     public static function make(Company $company): See
     {
+        SunatRespuesta::prepararTiempos();
+
         $see = new See();
         $see->setCertificate(CertificateLoader::pem($company));
         $see->setService(

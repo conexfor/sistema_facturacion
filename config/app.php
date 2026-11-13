@@ -65,7 +65,9 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Hora de Perú: las fechas de los comprobantes (IssueDate), el resumen
+    // diario, los reportes y la caja deben corresponder al día local.
+    'timezone' => env('APP_TIMEZONE', 'America/Lima'),
 
     /*
     |--------------------------------------------------------------------------

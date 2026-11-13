@@ -4,9 +4,20 @@ import Button from '@/Components/ui/Button';
 import { SelectField, Switch, TextField } from '@/Components/ui/Form';
 import PageHeader from '@/Components/ui/PageHeader';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm } from '@inertiajs/react';
-import { CheckCircle2, ShieldAlert, UploadCloud } from 'lucide-react';
-import { FormEvent } from 'react';
+import { Head, router, useForm } from '@inertiajs/react';
+import { BadgeCheck, CheckCircle2, ShieldAlert, UploadCloud } from 'lucide-react';
+import { FormEvent, useState } from 'react';
+
+interface CertificadoInfo {
+    ruc: string | null;
+    titular: string | null;
+    emisor: string | null;
+    vence: string | null;
+    vencido: boolean;
+    coincide: boolean;
+}
+
+const formatoFecha = (iso: string) => iso.split('-').reverse().join('/');
 
 interface CompanySunat {
     ruc: string;
@@ -29,10 +40,26 @@ interface CompanySunat {
 export default function Edit({
     company,
     configurado,
+    certificado,
 }: {
     company: CompanySunat;
     configurado: boolean;
+    certificado: CertificadoInfo | null;
 }) {
+    const [aplicando, setAplicando] = useState(false);
+
+    const aplicarCertificado = () =>
+        router.post(
+            route('settings.sunat.aplicar-certificado'),
+            {},
+            {
+                // Remontar la página para que el formulario tome el nuevo domicilio.
+                preserveState: false,
+                onStart: () => setAplicando(true),
+                onFinish: () => setAplicando(false),
+            },
+        );
+
     const form = useForm<{
         ubigeo: string;
         departamento: string;
@@ -67,7 +94,13 @@ export default function Edit({
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        form.post(route('settings.sunat.update'), { preserveScroll: true });
+        // Si se subió un certificado, el servidor actualiza los datos de la
+        // empresa: se remonta la página para que el formulario los muestre
+        // (salvo que haya errores, para no perder lo escrito).
+        form.post(route('settings.sunat.update'), {
+            preserveScroll: true,
+            preserveState: 'errors',
+        });
     };
 
     return (
@@ -170,6 +203,11 @@ export default function Edit({
                                     onChange={(e) => form.setData('sol_pass', e.target.value)}
                                     error={form.errors.sol_pass}
                                     placeholder={company.tiene_clave_sol ? '•••••• (sin cambios)' : ''}
+                                    hint={
+                                        company.tiene_clave_sol
+                                            ? '✓ Guardada (cifrada). Por seguridad no se muestra; escribe una nueva solo para cambiarla.'
+                                            : undefined
+                                    }
                                 />
                             </div>
 
@@ -177,6 +215,14 @@ export default function Edit({
                                 <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                                     Certificado digital (.pfx o .pem)
                                 </label>
+                                {company.tiene_certificado && (
+                                    <p className="mb-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
+                                        ✓ Certificado guardado
+                                        {certificado?.titular ? ` de ${certificado.titular}` : ''}
+                                        {certificado?.vence ? ` · vence ${formatoFecha(certificado.vence)}` : ''}.
+                                        Sube otro archivo solo si quieres reemplazarlo.
+                                    </p>
+                                )}
                                 <div className="flex items-center gap-3 rounded-lg border border-dashed border-slate-300 px-4 py-3 dark:border-slate-700">
                                     <UploadCloud className="size-5 text-slate-400" />
                                     <input
@@ -225,6 +271,11 @@ export default function Edit({
                                     onChange={(e) => form.setData('gre_client_secret', e.target.value)}
                                     error={form.errors.gre_client_secret}
                                     placeholder={company.tiene_gre_secret ? '•••••• (sin cambios)' : ''}
+                                    hint={
+                                        company.tiene_gre_secret
+                                            ? '✓ Guardado (cifrado). Escribe uno nuevo solo para cambiarlo.'
+                                            : undefined
+                                    }
                                 />
                             </div>
                             <p className="mt-2 text-xs text-slate-400">
@@ -283,6 +334,69 @@ export default function Edit({
                                 </li>
                             </ul>
                         </Card>
+
+                        {certificado && (
+                            <Card title="Certificado digital">
+                                <ul className="space-y-2 text-sm">
+                                    <li>
+                                        <span className="block text-xs text-slate-400">Titular</span>
+                                        <span className="font-medium text-slate-800 dark:text-slate-100">
+                                            {certificado.titular ?? '—'}
+                                        </span>
+                                    </li>
+                                    <li className="flex items-center justify-between">
+                                        <span className="text-slate-500 dark:text-slate-400">RUC del certificado</span>
+                                        {certificado.ruc ? (
+                                            <span className="flex items-center gap-1 font-mono text-xs">
+                                                {certificado.coincide && (
+                                                    <BadgeCheck className="size-4 text-emerald-500" />
+                                                )}
+                                                {certificado.ruc}
+                                            </span>
+                                        ) : (
+                                            <Badge tone="slate">No detectado</Badge>
+                                        )}
+                                    </li>
+                                    {certificado.vence && (
+                                        <li className="flex items-center justify-between">
+                                            <span className="text-slate-500 dark:text-slate-400">Vence</span>
+                                            <Badge tone={certificado.vencido ? 'rose' : 'emerald'}>
+                                                {certificado.vencido ? 'Vencido ' : ''}
+                                                {formatoFecha(certificado.vence)}
+                                            </Badge>
+                                        </li>
+                                    )}
+                                    {certificado.emisor && (
+                                        <li>
+                                            <span className="block text-xs text-slate-400">Emitido por</span>
+                                            <span className="text-xs text-slate-600 dark:text-slate-300">
+                                                {certificado.emisor}
+                                            </span>
+                                        </li>
+                                    )}
+                                </ul>
+
+                                {certificado.ruc && !certificado.coincide && (
+                                    <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                                        <p>
+                                            El RUC del certificado no coincide con el de la empresa ({company.ruc}).
+                                            Al usar sus datos se reemplazan RUC, razón social y domicilio fiscal, y
+                                            se borran teléfono y correo de la empresa anterior.
+                                        </p>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="secondary"
+                                            className="mt-2"
+                                            onClick={aplicarCertificado}
+                                            disabled={aplicando}
+                                        >
+                                            Usar datos del certificado
+                                        </Button>
+                                    </div>
+                                )}
+                            </Card>
+                        )}
                     </div>
                 </div>
             </form>

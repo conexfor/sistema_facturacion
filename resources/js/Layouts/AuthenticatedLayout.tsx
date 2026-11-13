@@ -1,5 +1,6 @@
 import SidebarContent from '@/Components/SidebarContent';
 import Topbar from '@/Components/Topbar';
+import { NOTIFY_EVENT, NotifyDetail } from '@/lib/notify';
 import { usePage } from '@inertiajs/react';
 import { AlertTriangle, CheckCircle2, X, XCircle } from 'lucide-react';
 import {
@@ -34,6 +35,17 @@ export default function AuthenticatedLayout({
         else if (flash?.error) setToast({ type: 'error', message: flash.error });
         else if (flash?.warning) setToast({ type: 'warning', message: flash.warning });
     }, [flash]);
+
+    // Avisos lanzados fuera de React (ver lib/notify.ts).
+    useEffect(() => {
+        const onNotify = (e: Event) => {
+            const { type, message } = (e as CustomEvent<NotifyDetail>).detail;
+            e.preventDefault();
+            setToast({ type, message });
+        };
+        window.addEventListener(NOTIFY_EVENT, onNotify);
+        return () => window.removeEventListener(NOTIFY_EVENT, onNotify);
+    }, []);
 
     useEffect(() => {
         if (!toast) return;

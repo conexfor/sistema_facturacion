@@ -109,6 +109,9 @@ class NoteController extends Controller
         if ($note->sunat_estado === 'rechazado') {
             return redirect()->route('notas.index')->with('error', $msg);
         }
+        if ($note->sunat_estado === 'no_enviado') {
+            return redirect()->route('notas.index')->with('warning', $msg);
+        }
         if ($note->advertenciaCaja) {
             return redirect()->route('notas.index')->with('warning', $msg . ' ' . $note->advertenciaCaja);
         }
